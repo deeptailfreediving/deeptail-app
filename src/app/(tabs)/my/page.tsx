@@ -33,6 +33,15 @@ export default async function MyPage() {
         <LogoutButton />
       </section>
 
+      {session.user.role !== "STUDENT" && (
+        <Link
+          href="/admin"
+          className="mx-4 mb-4 flex min-h-12 items-center justify-center rounded-xl bg-brand-deep text-sm font-bold text-white"
+        >
+          관리자 화면 열기
+        </Link>
+      )}
+
       {enrollments.length > 0 && (
         <section className="mx-4 mb-4 flex flex-col gap-2">
           <h2 className="mx-1 text-base font-bold">수강 현황</h2>
