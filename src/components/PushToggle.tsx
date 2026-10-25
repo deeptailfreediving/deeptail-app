@@ -2,19 +2,18 @@
 
 import { useEffect, useState } from "react";
 
-const KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-
 function urlBase64ToUint8Array(base64: string) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-type State = "loading" | "unsupported" | "ios-install" | "denied" | "off" | "on";
+type State = "loading" | "no-key" | "unsupported" | "ios-install" | "denied" | "off" | "on";
 
 export default function PushToggle() {
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
+  const [key, setKey] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -23,7 +22,9 @@ export default function PushToggle() {
       const standalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         (navigator as Navigator & { standalone?: boolean }).standalone === true;
-      if (!KEY) return setState("unsupported");
+      const k = (await fetch("/api/push/key").then((r) => r.json()).catch(() => ({ key: "" }))).key as string;
+      if (!k) return setState("no-key");
+      setKey(k);
       if (!supported) return setState(isIOS && !standalone ? "ios-install" : "unsupported");
       if (Notification.permission === "denied") return setState("denied");
       const reg = await navigator.serviceWorker.register("/sw.js");
@@ -44,7 +45,7 @@ export default function PushToggle() {
       await navigator.serviceWorker.ready;
       const sub =
         (await reg.pushManager.getSubscription()) ??
-        (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(KEY!) }));
+        (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) }));
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,6 +78,7 @@ export default function PushToggle() {
 
   const note: Record<State, string> = {
     loading: "",
+    "no-key": "알림 기능이 아직 준비 중이에요.",
     unsupported: "이 브라우저에서는 알림을 받을 수 없어요.",
     "ios-install": "아이폰은 공유 버튼 → '홈 화면에 추가' 후 앱으로 열면 알림을 켤 수 있어요.",
     denied: "알림이 차단돼 있어요. 휴대폰 설정에서 이 앱의 알림을 허용해 주세요.",

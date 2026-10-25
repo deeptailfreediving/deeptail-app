@@ -4,15 +4,16 @@ import webpush from "web-push";
 import { eq, inArray } from "drizzle-orm";
 import { db, tables } from "@/db";
 
-export const pushEnabled = () =>
-  Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+const publicKey = () => process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? process.env.VAPID_PUBLIC_KEY ?? "";
+
+export const pushEnabled = () => Boolean(publicKey() && process.env.VAPID_PRIVATE_KEY);
 
 let configured = false;
 function configure() {
   if (configured) return;
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT ?? "mailto:admin@deeptail.local",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    publicKey(),
     process.env.VAPID_PRIVATE_KEY!,
   );
   configured = true;
