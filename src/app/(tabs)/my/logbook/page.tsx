@@ -23,6 +23,14 @@ export default async function LogbookPage({ searchParams }: { searchParams: { sa
           </p>
         )}
 
+        <Link href="/my/videos" className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-base font-bold">강습영상 · 강사 피드백</span>
+            <span className="text-xs text-ink-sub">수업 영상과 피드백을 날짜별로 볼 수 있어요</span>
+          </span>
+          <span className="text-sm font-bold text-brand">보기</span>
+        </Link>
+
         {/* 요약 */}
         <section className="flex flex-col gap-3 rounded-[20px] bg-brand-gradient p-5 text-white">
           <div className="flex items-baseline justify-between">

@@ -6,6 +6,7 @@ import { listMyRequests, paymentLabel } from "@/lib/requests";
 import { listMyEnrollments } from "@/lib/schedule";
 import { hm, longDate } from "@/lib/time";
 import LogoutButton from "./LogoutButton";
+import PushToggle from "@/components/PushToggle";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "마이페이지 | 딥테일 프리다이빙" };
@@ -32,6 +33,8 @@ export default async function MyPage() {
         </div>
         <LogoutButton />
       </section>
+
+      <PushToggle />
 
       {session.user.role !== "STUDENT" && (
         <Link
@@ -94,7 +97,7 @@ export default async function MyPage() {
       >
         <span className="flex flex-col gap-0.5">
           <span className="text-base font-bold">내 로그북</span>
-          <span className="text-xs text-ink-sub">다이빙 기록 · 개인 최고 기록 · 강사 피드백</span>
+          <span className="text-xs text-ink-sub">다이빙 기록 · 개인 최고 기록 · 강습영상 · 강사 피드백</span>
         </span>
         <span className="text-sm font-bold text-brand">열기</span>
       </Link>

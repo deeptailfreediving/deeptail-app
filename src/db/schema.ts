@@ -36,6 +36,8 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull().default("STUDENT"),
   // 만 14세 미만이면 보호자 동의 필요 (동의 절차는 추후 확정)
   birthDate: timestamp("birth_date", { mode: "date" }),
+  // 노션 '로그북 DB'의 교육생 페이지 id (강습영상 연동용)
+  notionStudentPageId: text("notion_student_page_id"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -287,6 +289,38 @@ export const diveLogs = pgTable(
   },
   (t) => [index("dive_logs_user_date_idx").on(t.userId, t.diveDate), index("dive_logs_reviewed_idx").on(t.reviewed)],
 );
+
+// ─────────────── 푸시 알림 · 노션 연동 ───────────────
+
+// 기기별 웹 푸시 구독 (한 사람이 휴대폰·PC 여러 개 가능)
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("push_user_idx").on(t.userId)],
+);
+
+// 노션 강습영상 페이지별 마지막으로 알린 피드백 (같은 피드백으로 두 번 알리지 않게)
+export const notionVideoState = pgTable("notion_video_state", {
+  pageId: text("page_id").primaryKey(),
+  feedbackHash: text("feedback_hash").notNull(),
+  notifiedAt: timestamp("notified_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// 앱 설정값 (노션 웹훅 확인 토큰 등)
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: updatedAt(),
+});
 
 // ─────────────── 관계 ───────────────
 

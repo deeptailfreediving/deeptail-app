@@ -203,12 +203,29 @@ export async function deleteNotice(id: string) {
 export async function reviewLog(id: string, _: FormState, formData: FormData): Promise<FormState> {
   const session = await requireStaff();
   const feedback = String(formData.get("feedback") ?? "").trim().slice(0, 2000);
+  const [before] = await db.select().from(tables.diveLogs).where(eq(tables.diveLogs.id, id));
+  if (!before) return { error: "로그를 찾을 수 없어요." };
   await db
     .update(tables.diveLogs)
     .set({ feedback, reviewed: true, reviewedById: session.user.id, reviewedAt: new Date() })
     .where(eq(tables.diveLogs.id, id));
   revalidatePath("/", "layout");
-  return { ok: feedback ? "피드백을 남기고 확인완료했어요." : "확인완료했어요.", at: Date.now() };
+
+  // 새 피드백이거나 내용이 바뀌었으면 교육생에게 푸시
+  let pushed = 0;
+  if (feedback && feedback !== before.feedback.trim()) {
+    const { sendPush } = await import("@/lib/push");
+    pushed = await sendPush([before.userId], {
+      title: before.feedback ? "로그 피드백이 수정됐어요" : "로그에 강사 피드백이 달렸어요",
+      body: feedback.length > 60 ? `${feedback.slice(0, 60)}…` : feedback,
+      url: `/my/logbook/${id}`,
+      tag: `log-${id}`,
+    });
+  }
+  return {
+    ok: (feedback ? "피드백을 남기고 확인완료했어요." : "확인완료했어요.") + (pushed ? ` (알림 ${pushed}건 전송)` : ""),
+    at: Date.now(),
+  };
 }
 
 // ─────────────── 로그 가져오기 (노션 → 앱) ───────────────
@@ -270,4 +287,42 @@ export async function importLogs(_: FormState, formData: FormData): Promise<Form
     ok: `${target.name}님 로그북에 ${records.length}건을 넣었어요.${skipped ? ` (중복 ${skipped}건 건너뜀)` : ""}`,
     at: Date.now(),
   };
+}
+
+// ─────────────── 노션 연동 ───────────────
+
+export async function linkNotionStudent(userId: string, formData: FormData) {
+  await requireAdmin();
+  const pageId = String(formData.get("notionPageId") ?? "").replace(/-/g, "").toLowerCase();
+  await db
+    .update(tables.users)
+    .set({ notionStudentPageId: /^[0-9a-f]{32}$/.test(pageId) ? pageId : null })
+    .where(eq(tables.users.id, userId));
+  done(pageId ? "노션 교육생과 연결했어요." : "연결을 해제했어요.", "/admin/notion");
+}
+
+export async function autoLinkByName() {
+  await requireAdmin();
+  const { listNotionStudents, normId } = await import("@/lib/notion");
+  const students = await listNotionStudents();
+  const users = await db.select().from(tables.users);
+  let n = 0;
+  for (const u of users) {
+    if (u.notionStudentPageId) continue;
+    const same = students.filter((s) => s.name.trim() === u.name.trim());
+    if (same.length === 1) {
+      await db.update(tables.users).set({ notionStudentPageId: normId(same[0].id) }).where(eq(tables.users.id, u.id));
+      n++;
+    }
+  }
+  done(n ? `이름이 같은 회원 ${n}명을 연결했어요.` : "새로 연결할 회원이 없어요 (이름이 같고 한 명뿐인 경우만 자동 연결).", "/admin/notion");
+}
+
+export async function seedNotionFeedback() {
+  await requireAdmin();
+  const { listRecentlyEditedVideos } = await import("@/lib/notion");
+  const { notifyIfFeedbackChanged } = await import("@/lib/feedbackNotify");
+  const videos = await listRecentlyEditedVideos(new Date(Date.now() - 3650 * 86_400_000).toISOString());
+  for (const v of videos) await notifyIfFeedbackChanged(v, { seedOnly: true });
+  done(`기존 강습영상 ${videos.length}건을 '알림 보냄' 상태로 기록했어요. 이제부터 새로 쓰는 피드백만 알림이 가요.`, "/admin/notion");
 }

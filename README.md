@@ -23,6 +23,16 @@
 - 마이페이지: 수강 현황(진행 막대), 내 신청 목록·상세(승인 대기/확정, 입금 대기/결제완료)
 - 다음 단계 화면 자리: 사진·영상, 후기, 교육자료, 로그북
 
+## 노션 강습영상 연동 · 푸시 알림
+
+- 영상과 피드백은 지금처럼 노션 **강습영상 MASTER DB**에 올리면, 앱 로그북의 **강습영상** 화면에 자동으로 보임
+- 앱 회원 ↔ 노션 로그북 DB 교육생 연결: 관리자 → **노션** 탭
+- 피드백이 쓰이면 교육생에게 푸시 알림
+  - 노션 웹훅 주소: `https://<앱 주소>/api/notion/webhook` (이벤트: page.properties_updated)
+  - 웹훅을 놓쳐도 매일 1번 최근 2일 수정분을 다시 점검 (`vercel.json` cron)
+  - 앱 로그북에서 강사가 쓴 피드백도 알림
+- 아이폰은 '홈 화면에 추가'한 앱에서 마이페이지 → **알림 켜기** 해야 알림이 옴
+
 ## 기술 구성
 
 | 영역 | 사용 기술 |
@@ -48,6 +58,10 @@
 | `SEED_ADMIN_EMAIL` | 대표 관리자 로그인 이메일 |
 | `SEED_ADMIN_PASSWORD` | 대표 관리자 비밀번호 |
 | `SEED_DEMO` | `1`이면 [예시] 일정과 테스트 교육생 계정 생성 (테스트 기간에만) |
+| `NOTION_TOKEN` | 노션 연결(Integration) 키 — 강습영상 연동 |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` · `VAPID_PRIVATE_KEY` | 웹 푸시 알림 키 (`npx web-push generate-vapid-keys`) |
+| `VAPID_SUBJECT` | `mailto:대표 이메일` |
+| `CRON_SECRET` | 매일 피드백 점검 작업 보호용 임의 문자열 |
 
 테스트 교육생 계정(`SEED_DEMO=1`): `demo@deeptail.local` / `demo1234` — AIDA 2 수강 중, 2회차 완료라 자율연습 참여 가능
 

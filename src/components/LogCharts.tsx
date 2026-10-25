@@ -3,6 +3,7 @@
 const BRAND = "#036DB7";
 const GRID = "#E4EAF0";
 const INK_MUTE = "#5D6E7E";
+const BEST = "#D92D20"; // 최고 기록 포인트 (붉은색)
 
 /** 최근 6개월 월별 다이빙 횟수 */
 export function MonthlyBars({ months }: { months: { key: string; label: string; count: number }[] }) {
@@ -74,7 +75,10 @@ export function TrendLine({
   const bestIdx = vs.lastIndexOf(hi);
   const lastIdx = points.length - 1;
   // 처음 · 최고 · 최근 값만 직접 라벨 (모든 점에 숫자를 달지 않음)
-  const labeled = Array.from(new Set([0, bestIdx, lastIdx]));
+  // 최고 기록 라벨과 겹치면(가로 70 이내) 처음·최근 라벨은 생략
+  const labeled = Array.from(new Set([bestIdx, 0, lastIdx])).filter(
+    (i) => i === bestIdx || Math.abs(X(i) - X(bestIdx)) > 70,
+  );
   const anchor = (i: number) => (i === 0 ? "start" : i === lastIdx ? "end" : "middle");
 
   return (
@@ -82,9 +86,9 @@ export function TrendLine({
       <path d={d} fill="none" stroke={BRAND} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
       {points.map((p, i) => (
         <g key={`${p.date}-${i}`}>
-          <title>{`${p.date.slice(5).replace("-", "/")} · ${format(p.v)}`}</title>
+          <title>{`${p.date.slice(5).replace("-", "/")} · ${format(p.v)}${i === bestIdx ? " · 최고 기록" : ""}`}</title>
           <circle cx={X(i)} cy={Y(p.v)} r="10" fill="transparent" />
-          <circle cx={X(i)} cy={Y(p.v)} r={i === bestIdx ? 4.5 : 3} fill={BRAND} stroke="#fff" strokeWidth="2" />
+          <circle cx={X(i)} cy={Y(p.v)} r={i === bestIdx ? 5 : 3} fill={i === bestIdx ? BEST : BRAND} stroke="#fff" strokeWidth="2" />
         </g>
       ))}
       {labeled.map((i) => (
@@ -95,7 +99,7 @@ export function TrendLine({
           textAnchor={anchor(i)}
           fontSize="11"
           fontWeight={i === bestIdx ? 700 : 400}
-          fill={i === bestIdx ? "#10202E" : INK_MUTE}
+          fill={i === bestIdx ? BEST : INK_MUTE}
         >
           {format(points[i].v)}
         </text>

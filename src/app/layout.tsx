@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   description: "딥테일 프리다이빙 교육 일정·예약·로그북",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "딥테일", statusBarStyle: "default" },
+  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
