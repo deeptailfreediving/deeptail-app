@@ -1,0 +1,10 @@
+{
+  "name": "딥테일 프리다이빙",
+  "short_name": "딥테일",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F6F9",
+  "theme_color": "#036DB7",
+  "lang": "ko",
+  "icons": []
+}
