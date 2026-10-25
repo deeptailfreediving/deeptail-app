@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { db, tables } from "@/db";
 import PageHeader, { ComingSoon } from "@/components/PageHeader";
 import { durationLabel, getCourseByCode, won } from "@/lib/pricing";
 
-export const dynamic = "force-dynamic";
+// 자주 바뀌지 않는 화면 — 미리 만들어 두고 5분마다 갱신 (관리자 수정 시 즉시 갱신)
+export const revalidate = 300;
+
+// 빌드할 때 과정 상세를 미리 만들어 둠
+export async function generateStaticParams() {
+  const rows = await db.select({ code: tables.courses.code }).from(tables.courses);
+  return rows.map((r) => ({ code: r.code }));
+}
 
 export async function generateMetadata({ params }: { params: { code: string } }) {
   const c = await getCourseByCode(params.code);

@@ -1,26 +1,13 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
-import { db, tables } from "@/db";
-import { getSession } from "@/lib/auth";
+import { AccountButton, Greeting, MembersOnlyBadge } from "@/components/HomeUser";
 import { categoryLabel, formatDate, listNotices } from "@/lib/notices";
-import { CalendarIcon, CapIcon, ChatIcon, ChevronIcon, LockIcon, PhotoIcon, PlayIcon } from "@/components/icons";
+import { CalendarIcon, CapIcon, ChatIcon, ChevronIcon, PhotoIcon, PlayIcon } from "@/components/icons";
 
-export const dynamic = "force-dynamic";
-
-async function remainingSessions(userId: string) {
-  const rows = await db
-    .select({ total: tables.enrollments.totalSessions, used: tables.enrollments.usedSessions })
-    .from(tables.enrollments)
-    .where(eq(tables.enrollments.studentId, userId));
-  return rows.reduce((sum, r) => sum + (r.total - r.used), 0);
-}
+// 홈은 미리 만들어 두고(공지 바뀌면 즉시 갱신) 로그인 정보만 따로 불러와서 바로 열림
+export const revalidate = 300;
 
 export default async function HomePage() {
-  const session = await getSession();
-  const [notices, remaining] = await Promise.all([
-    listNotices(3),
-    session ? remainingSessions(session.user.id) : Promise.resolve(null),
-  ]);
+  const notices = await listNotices(3);
   const [featured, ...rest] = notices;
 
   return (
@@ -31,30 +18,12 @@ export default async function HomePage() {
             <span className="text-xl font-extrabold tracking-wide">DEEPTAIL</span>
             <span className="text-[11px] font-medium tracking-[0.3em] text-brand-soft">FREEDIVING</span>
           </div>
-          {session ? (
-            <Link
-              href="/my"
-              className="flex min-h-11 items-center rounded-full bg-white/15 px-4 text-sm font-bold"
-            >
-              {session.user.name}님
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="flex min-h-11 items-center rounded-full bg-white px-5 text-sm font-bold text-brand-mid"
-            >
-              로그인
-            </Link>
-          )}
+          <AccountButton />
         </div>
         <div className="flex flex-col gap-1.5">
           <p className="text-[22px] font-bold leading-snug">오늘은 어디서 숨을 참아볼까요?</p>
           <p className="text-sm text-brand-soft">
-            {session
-              ? remaining
-                ? `남은 수업 ${remaining}회 · 일정에서 바로 신청하세요.`
-                : "일정에서 자율연습과 정기트레이닝을 확인하세요."
-              : "일정은 누구나 볼 수 있어요. 신청할 때만 로그인하면 돼요."}
+            <Greeting />
           </p>
         </div>
       </header>
@@ -109,7 +78,7 @@ export default async function HomePage() {
             <Tile href="/courses" label="교육과정" Icon={CapIcon} />
             <Tile href="/gallery" label="사진 · 영상" Icon={PhotoIcon} />
             <Tile href="/reviews" label="강습 · 투어 후기" Icon={ChatIcon} />
-            <Tile href="/materials" label="교육자료" Icon={PlayIcon} locked={!session} />
+            <Tile href="/materials" label="교육자료" Icon={PlayIcon} locked />
           </div>
         </section>
       </main>
@@ -132,12 +101,7 @@ function Tile({
     <Link href={href} className="flex flex-col gap-2.5 rounded-[18px] bg-white p-4 shadow-card">
       <span className="flex items-start justify-between">
         <Icon className="h-[26px] w-[26px] text-brand" />
-        {locked && (
-          <span className="flex items-center gap-1 text-[11px] font-medium text-ink-mute">
-            <LockIcon className="h-3 w-3" />
-            교육생 전용
-          </span>
-        )}
+        {locked && <MembersOnlyBadge />}
       </span>
       <span className="text-[15px] font-bold">{label}</span>
     </Link>

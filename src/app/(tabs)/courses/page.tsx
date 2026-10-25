@@ -4,7 +4,8 @@ import { ChevronIcon } from "@/components/icons";
 import { brand, practiceInfo } from "@/db/course-data";
 import { durationLabel, listCourses, listRentalItems, listTrainingOptions, won } from "@/lib/pricing";
 
-export const dynamic = "force-dynamic";
+// 자주 바뀌지 않는 화면 — 미리 만들어 두고 5분마다 갱신 (관리자 수정 시 즉시 갱신)
+export const revalidate = 300;
 export const metadata = { title: "교육과정 | 딥테일 프리다이빙" };
 
 export default async function CoursesPage() {

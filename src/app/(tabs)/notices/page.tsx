@@ -2,7 +2,8 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { categoryLabel, formatDate, listNotices } from "@/lib/notices";
 
-export const dynamic = "force-dynamic";
+// 자주 바뀌지 않는 화면 — 미리 만들어 두고 5분마다 갱신 (관리자 수정 시 즉시 갱신)
+export const revalidate = 300;
 export const metadata = { title: "공지사항 | 딥테일 프리다이빙" };
 
 export default async function NoticesPage() {

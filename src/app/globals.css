@@ -5,3 +5,153 @@
 body {
   @apply bg-canvas text-ink;
 }
+
+/* ───── 터치 반응 ─────
+   - 휴대폰 기본 회색 터치 상자 대신, 누르는 순간 살짝 눌리는 효과
+   - touch-action: manipulation → 두 번 탭 확대 대기 시간 없이 바로 반응 */
+html {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+a,
+button,
+summary,
+[role="button"],
+label:has(> input[type="radio"]),
+label:has(> input[type="checkbox"]) {
+  transition: transform 0.12s ease-out, filter 0.12s ease-out, opacity 0.12s ease-out;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:is(a, button, summary, [role="button"], label:has(> input[type="radio"]), label:has(> input[type="checkbox"])):active:not(
+    :disabled,
+    [aria-disabled="true"]
+  ) {
+  transform: scale(0.97);
+  filter: brightness(0.93);
+  transition-duration: 0.04s;
+}
+
+/* 이동 중인 링크 (누른 직후 다음 화면이 뜰 때까지) */
+a[data-pending="true"]:not(nav a) {
+  opacity: 0.6;
+}
+
+/* 불러오는 중 자리표시 */
+.skeleton {
+  @apply animate-shimmer rounded-xl;
+  background: linear-gradient(90deg, #e9eef3 25%, #f6f8fa 50%, #e9eef3 75%);
+  background-size: 200% 100%;
+}
+
+/* ───── 앱 실행 로고 화면 ─────
+   서버 HTML에 바로 들어 있어 첫 화면부터 보이고, 자바스크립트 없이 1초 뒤 사라짐.
+   같은 실행(세션) 안에서는 다시 나오지 않음 (html.no-splash) */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: linear-gradient(180deg, #036db7 0%, #014777 55%, #003b63 100%);
+  color: #fff;
+  animation: splash-out 0.3s ease-in 0.9s forwards;
+  pointer-events: none;
+}
+.no-splash .splash {
+  display: none;
+}
+.splash-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: splash-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.splash-word {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.splash-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.45em;
+  padding-left: 0.45em;
+  color: #cfe4f4;
+  animation: splash-fade 0.4s ease-out 0.2s both;
+}
+.splash-wave path {
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  animation: splash-draw 0.6s ease-out 0.25s forwards;
+}
+.splash-bubble {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(207, 228, 244, 0.7);
+  animation: splash-bubble 1.1s ease-in both;
+}
+@keyframes splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes splash-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes splash-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes splash-bubble {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-60vh);
+    opacity: 0;
+  }
+}
+
+/* 움직임 줄이기 설정을 켠 기기 */
+@media (prefers-reduced-motion: reduce) {
+  .splash {
+    animation-delay: 0.4s;
+  }
+  .splash *,
+  .splash-wave path {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+  :is(a, button):active {
+    transform: none;
+  }
+}

@@ -2,6 +2,7 @@
 
 import { and, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, tables } from "@/db";
 import { getSession } from "@/lib/auth";
@@ -232,5 +233,6 @@ export async function apply(_: ApplyState, formData: FormData): Promise<ApplySta
     }
   }
 
+  revalidatePath("/", "layout"); // 일정 화면 '예약됨'·참여 인원 바로 반영
   redirect(`/my/requests/${newId}`);
 }

@@ -23,6 +23,16 @@ const config: Config = {
       boxShadow: {
         card: "0 2px 10px rgba(1,71,119,0.08)",
       },
+      keyframes: {
+        "fade-in": { from: { opacity: "0", transform: "translateY(4px)" }, to: { opacity: "1", transform: "none" } },
+        "nav-progress": { from: { width: "0%" }, "30%": { width: "55%" }, to: { width: "90%" } },
+        shimmer: { "0%": { backgroundPosition: "-200% 0" }, "100%": { backgroundPosition: "200% 0" } },
+      },
+      animation: {
+        "fade-in": "fade-in .18s ease-out both",
+        "nav-progress": "nav-progress 2.5s cubic-bezier(.1,.7,.2,1) forwards",
+        shimmer: "shimmer 1.2s linear infinite",
+      },
       fontFamily: {
         sans: ["var(--font-pretendard)", "system-ui", "sans-serif"],
       },

@@ -17,8 +17,11 @@ export const ACTIVE_STATUSES = ["PENDING", "APPROVED"] as const;
 
 /** 하루 동안의 공개 일정 + 참여 인원 */
 export async function listSchedulesOn(date: string) {
-  const from = kst(date);
-  const to = kst(date, "23:59");
+  return listSchedulesBetween(kst(date), kst(date, "23:59"));
+}
+
+/** 기간 안의 공개 일정 + 참여 인원 (일정 화면은 3주치를 한 번에 받아 날짜 전환을 즉시 처리) */
+export async function listSchedulesBetween(from: Date, to: Date) {
   const rows = await db
     .select({
       id: schedules.id,
@@ -41,8 +44,10 @@ export async function listSchedulesOn(date: string) {
 
 /** 하루 동안 이미 잡힌 수업 신청 (이름 없이 '예약됨'으로만 보여줌) */
 export async function listBookedOn(date: string) {
-  const from = kst(date);
-  const to = kst(date, "23:59");
+  return listBookedBetween(kst(date), kst(date, "23:59"));
+}
+
+export async function listBookedBetween(from: Date, to: Date) {
   return db
     .select({
       id: registrations.id,

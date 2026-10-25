@@ -2,7 +2,13 @@ import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { categoryLabel, formatDate, getNotice } from "@/lib/notices";
 
-export const dynamic = "force-dynamic";
+// 자주 바뀌지 않는 화면 — 미리 만들어 두고 5분마다 갱신 (관리자 수정 시 즉시 갱신)
+export const revalidate = 300;
+
+// 처음 열 때 만들어 두고 이후엔 바로 보여줌
+export function generateStaticParams() {
+  return [];
+}
 
 export default async function NoticeDetail({ params }: { params: { id: string } }) {
   const n = await getNotice(params.id);
