@@ -8,6 +8,20 @@
       "when": 1792911854767,
       "tag": "0000_fantastic_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792924787855,
+      "tag": "0001_drop_old_logbook",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792924803290,
+      "tag": "0002_dive_logs",
+      "breakpoints": true
     }
   ]
 }

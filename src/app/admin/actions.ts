@@ -197,3 +197,16 @@ export async function deleteNotice(id: string) {
   await db.delete(tables.notices).where(eq(tables.notices.id, id));
   done("공지를 삭제했어요.", "/admin/notices");
 }
+
+// ─────────────── 로그북 피드백 ───────────────
+
+export async function reviewLog(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const session = await requireStaff();
+  const feedback = String(formData.get("feedback") ?? "").trim().slice(0, 2000);
+  await db
+    .update(tables.diveLogs)
+    .set({ feedback, reviewed: true, reviewedById: session.user.id, reviewedAt: new Date() })
+    .where(eq(tables.diveLogs.id, id));
+  revalidatePath("/", "layout");
+  return { ok: feedback ? "피드백을 남기고 확인완료했어요." : "확인완료했어요.", at: Date.now() };
+}

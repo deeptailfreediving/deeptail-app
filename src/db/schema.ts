@@ -244,39 +244,48 @@ export const notices = pgTable(
 );
 
 // ─────────────── 로그북 ───────────────
-// 노션 로그북 DB 항목 확인 후 필드 확정 예정
+// 노션 '로그북 MASTER DB' 구조를 따름: 다이빙 하루 = 기록 1건, 종목별 [기록] + [활동] 메모
 
-export const disciplineEnum = pgEnum("discipline", [
-  "STA",
-  "DYN",
-  "DNF",
-  "CWT",
-  "FIM",
-  "CNF",
-  "FUN",
+export const divePurposeEnum = pgEnum("dive_purpose", [
+  "SELF_PRACTICE", // 자율연습
+  "REGULAR_TRAINING", // 정기트레이닝
+  "REGULAR_CLASS", // 정규수업
+  "PAID_TRAINING", // 유료트레이닝
+  "PERSONAL_TRAINING", // 개인트레이닝
+  "FUN_DIVING", // 펀다이빙
 ]);
 
-export const logbookEntries = pgTable(
-  "logbook_entries",
+export const diveLogs = pgTable(
+  "dive_logs",
   {
     id: id(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    date: timestamp("date", { mode: "date" }).notNull(),
-    locationId: text("location_id").references(() => locations.id),
-    locationText: text("location_text"), // 고정 장소 외 (해외 등)
-    discipline: disciplineEnum("discipline").notNull(),
-    timeSec: integer("time_sec"),
-    distanceM: integer("distance_m"),
-    depthM: real("depth_m"),
-    conditionNote: text("condition_note").notNull().default(""), // 호흡충동·컨트렉션·수축 메모
-    instructorComment: text("instructor_comment").notNull().default(""),
-    instructorId: text("instructor_id").references(() => users.id),
+    diveDate: text("dive_date").notNull(), // YYYY-MM-DD (한국 날짜)
+    purpose: divePurposeEnum("purpose").notNull(),
+    place: text("place").notNull(), // 장소 이름 (고정 7곳 + 대전 · 해양 등)
+    suit: text("suit").notNull().default(""), // 예) 5mm 원피스
+    weight: text("weight").notNull().default(""), // 예) 2kg
+    activity: text("activity").notNull().default(""), // 다이빙 활동 전반
+    // 종목별 기록 (0 또는 비움 = 하지 않음)
+    staSec: integer("sta_sec"), // 스테틱, 초 단위로 저장 (노션의 230 = 2분 30초)
+    staNote: text("sta_note").notNull().default(""),
+    dynM: real("dyn_m"), // 다이나믹 (m)
+    dynNote: text("dyn_note").notNull().default(""),
+    fimM: real("fim_m"), // 프리이멀전 (m)
+    fimNote: text("fim_note").notNull().default(""),
+    cwtM: real("cwt_m"), // 컨스턴트웨이트 (m)
+    cwtNote: text("cwt_note").notNull().default(""),
+    // 강사 피드백 · 확인완료
+    feedback: text("feedback").notNull().default(""),
+    reviewed: boolean("reviewed").notNull().default(false),
+    reviewedById: text("reviewed_by_id").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("logbook_user_date_idx").on(t.userId, t.date)],
+  (t) => [index("dive_logs_user_date_idx").on(t.userId, t.diveDate), index("dive_logs_reviewed_idx").on(t.reviewed)],
 );
 
 // ─────────────── 관계 ───────────────

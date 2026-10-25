@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
-import PageHeader, { ComingSoon } from "@/components/PageHeader";
+import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
 import { listMyRequests, paymentLabel } from "@/lib/requests";
 import { listMyEnrollments } from "@/lib/schedule";
@@ -88,11 +88,16 @@ export default async function MyPage() {
         )}
       </section>
 
-      <ComingSoon>
-        다음 단계에서 만들 화면이에요.
-        <br />
-        개인 로그북
-      </ComingSoon>
+      <Link
+        href="/my/logbook"
+        className="mx-4 mb-6 flex items-center justify-between rounded-2xl bg-white p-4 shadow-card"
+      >
+        <span className="flex flex-col gap-0.5">
+          <span className="text-base font-bold">내 로그북</span>
+          <span className="text-xs text-ink-sub">다이빙 기록 · 개인 최고 기록 · 강사 피드백</span>
+        </span>
+        <span className="text-sm font-bold text-brand">열기</span>
+      </Link>
     </>
   );
 }
