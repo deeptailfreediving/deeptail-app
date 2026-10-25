@@ -210,3 +210,64 @@ export async function reviewLog(id: string, _: FormState, formData: FormData): P
   revalidatePath("/", "layout");
   return { ok: feedback ? "피드백을 남기고 확인완료했어요." : "확인완료했어요.", at: Date.now() };
 }
+
+// ─────────────── 로그 가져오기 (노션 → 앱) ───────────────
+
+export async function importLogs(_: FormState, formData: FormData): Promise<FormState> {
+  const session = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const skipDup = formData.get("skipDuplicates") === "on";
+  const [target] = userId ? await db.select().from(tables.users).where(eq(tables.users.id, userId)) : [];
+  if (!target) return { error: "기록을 넣을 회원을 선택해 주세요." };
+
+  // 파일 또는 붙여넣은 내용
+  let raw = String(formData.get("json") ?? "").trim();
+  const file = formData.get("file");
+  // 서버 환경에 따라 File 클래스가 달라서 instanceof 대신 Blob 형태로 확인
+  if (!raw && file && typeof file === "object" && "text" in file && file.size > 0) {
+    if (file.size > 2_000_000) return { error: "파일이 너무 커요 (2MB 이하)." };
+    raw = (await (file as Blob).text()).trim();
+  }
+  if (!raw) return { error: "가져오기 파일을 선택하거나 내용을 붙여넣어 주세요." };
+
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { error: "파일 형식을 읽을 수 없어요 (JSON)." };
+  }
+  const { importFile } = await import("@/lib/logImport");
+  const parsed = importFile.safeParse(data);
+  if (!parsed.success) {
+    const i = parsed.error.issues[0];
+    return { error: `${i.path.join(".")} 항목을 확인해 주세요: ${i.message}` };
+  }
+
+  let records = parsed.data.records;
+  if (skipDup) {
+    const existing = await db
+      .select({ diveDate: tables.diveLogs.diveDate, purpose: tables.diveLogs.purpose, place: tables.diveLogs.place })
+      .from(tables.diveLogs)
+      .where(eq(tables.diveLogs.userId, target.id));
+    const key = (r: { diveDate: string; purpose: string; place: string }) => `${r.diveDate}|${r.purpose}|${r.place}`;
+    const seen = new Set(existing.map(key));
+    records = records.filter((r) => !seen.has(key(r)));
+  }
+  if (records.length === 0) return { ok: "새로 넣을 기록이 없어요 (모두 이미 있음).", at: Date.now() };
+
+  const now = new Date();
+  await db.insert(tables.diveLogs).values(
+    records.map((r) => ({
+      ...r,
+      userId: target.id,
+      reviewedById: r.reviewed ? session.user.id : null,
+      reviewedAt: r.reviewed ? now : null,
+    })),
+  );
+  revalidatePath("/", "layout");
+  const skipped = parsed.data.records.length - records.length;
+  return {
+    ok: `${target.name}님 로그북에 ${records.length}건을 넣었어요.${skipped ? ` (중복 ${skipped}건 건너뜀)` : ""}`,
+    at: Date.now(),
+  };
+}

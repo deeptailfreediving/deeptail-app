@@ -1,13 +1,24 @@
 import { DISCIPLINES, fmtRecord, listLogsForStaff, noteOf, purposeLabel, recordOf, type DiveLog } from "@/lib/logbook";
+import Link from "next/link";
+import { getSession } from "@/lib/auth";
 import { md, weekday } from "@/lib/time";
 import { reviewLog } from "../actions";
 import { Empty, Section } from "../ui";
 import FeedbackForm from "./FeedbackForm";
 
 export default async function AdminLogbook() {
+  const session = (await getSession())!;
   const [todo, done] = await Promise.all([listLogsForStaff(false), listLogsForStaff(true)]);
   return (
     <>
+      {session.user.role === "ADMIN" && (
+        <Link
+          href="/admin/logbook/import"
+          className="mx-4 mt-4 flex min-h-11 items-center justify-center rounded-xl border border-brand text-sm font-bold text-brand"
+        >
+          노션 로그 가져오기
+        </Link>
+      )}
       <Section title="확인 전 로그" count={todo.length}>
         {todo.length === 0 ? (
           <Empty>확인할 로그가 없어요.</Empty>
