@@ -72,24 +72,26 @@ a[data-pending="true"]:not(nav a) {
   align-items: center;
   animation: splash-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-.splash-word {
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+.splash-mark {
+  position: relative;
+  overflow: hidden;
 }
-.splash-sub {
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.45em;
-  padding-left: 0.45em;
-  color: #cfe4f4;
-  animation: splash-fade 0.4s ease-out 0.2s both;
+.splash-mark img {
+  display: block;
+  width: 260px;
+  height: auto;
 }
-.splash-wave path {
-  stroke-dasharray: 160;
-  stroke-dashoffset: 160;
-  animation: splash-draw 0.6s ease-out 0.25s forwards;
+/* 로고 위로 빛이 한 번 지나가는 효과 */
+.splash-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.9) 50%, transparent 60%) no-repeat;
+  background-size: 250% 100%;
+  background-position: 130% 0;
+  /* 로고 글자 모양에만 빛이 보이도록 */
+  -webkit-mask: url(/logo-white.webp) center / contain no-repeat;
+  mask: url(/logo-white.webp) center / contain no-repeat;
+  animation: splash-shine 0.7s ease-out 0.35s forwards;
 }
 .splash-bubble {
   position: absolute;
@@ -122,9 +124,9 @@ a[data-pending="true"]:not(nav a) {
     opacity: 1;
   }
 }
-@keyframes splash-draw {
+@keyframes splash-shine {
   to {
-    stroke-dashoffset: 0;
+    background-position: -30% 0;
   }
 }
 @keyframes splash-bubble {
@@ -146,10 +148,11 @@ a[data-pending="true"]:not(nav a) {
   .splash {
     animation-delay: 0.4s;
   }
-  .splash *,
-  .splash-wave path {
+  .splash * {
     animation: none !important;
-    stroke-dashoffset: 0;
+  }
+  .splash-shine {
+    display: none;
   }
   :is(a, button):active {
     transform: none;

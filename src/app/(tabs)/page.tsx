@@ -14,10 +14,8 @@ export default async function HomePage() {
     <>
       <header className="flex flex-col gap-5 bg-brand-gradient px-5 pb-14 pt-7 text-white">
         <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xl font-extrabold tracking-wide">DEEPTAIL</span>
-            <span className="text-[11px] font-medium tracking-[0.3em] text-brand-soft">FREEDIVING</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-white.webp" alt="DEEPTAIL FREEDIVING" width={139} height={40} className="h-10 w-auto" />
           <AccountButton />
         </div>
         <div className="flex flex-col gap-1.5">
