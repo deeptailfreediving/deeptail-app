@@ -1,14 +1,14 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { ChevronIcon } from "@/components/icons";
+import { decks } from "@/lib/materialDecks";
 
 export const metadata = { title: "교육자료 | 딥테일 프리다이빙" };
 
 const items = [
   { href: "/materials/equalizing", title: "이퀄라이징", desc: "귀가 아프기 전에 끝내는 법 · 방법 4가지 · 안 될 때", ready: true },
+  ...decks.map((d) => ({ href: `/materials/cards/${d.slug}`, title: d.title, desc: d.desc, ready: true })),
   { href: "/pools", title: "풀장 이용 안내", desc: "입장료 · 준비물 · 도착해서 할 일", ready: true },
-  { href: "", title: "준비호흡 · 회복호흡", desc: "곧 올라와요", ready: false },
-  { href: "", title: "부력 이해하기", desc: "곧 올라와요", ready: false },
 ];
 
 export default function MaterialsPage() {
