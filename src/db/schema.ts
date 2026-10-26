@@ -322,6 +322,25 @@ export const appSettings = pgTable("app_settings", {
   updatedAt: updatedAt(),
 });
 
+// ─────────────── 강습·투어 후기 (네이버 카페 글 링크) ───────────────
+export const reviewCategoryEnum = pgEnum("review_category", ["LESSON", "TOUR"]);
+export const reviewSourceEnum = pgEnum("review_source", ["SEARCH", "MANUAL"]);
+
+export const reviews = pgTable("reviews", {
+  id: id(),
+  /** 카페 글 번호 (주소 끝 숫자) — 같은 글 중복 방지 */
+  articleKey: text("article_key").notNull().unique(),
+  url: text("url").notNull(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt"),
+  category: reviewCategoryEnum("category").notNull().default("LESSON"),
+  source: reviewSourceEnum("source").notNull().default("SEARCH"),
+  hidden: boolean("hidden").notNull().default(false),
+  pinned: boolean("pinned").notNull().default(false),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
 // ─────────────── 관계 ───────────────
 
 export const noticesRelations = relations(notices, ({ one }) => ({

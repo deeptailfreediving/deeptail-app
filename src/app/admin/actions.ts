@@ -326,3 +326,63 @@ export async function seedNotionFeedback() {
   for (const v of videos) await notifyIfFeedbackChanged(v, { seedOnly: true });
   done(`기존 강습영상 ${videos.length}건을 '알림 보냄' 상태로 기록했어요. 이제부터 새로 쓰는 피드백만 알림이 가요.`, "/admin/notion");
 }
+
+// ─────────────── 강습·투어 후기 ───────────────
+
+export async function syncReviewsNow() {
+  await requireStaff();
+  const { syncReviews } = await import("@/lib/reviews");
+  const r = await syncReviews();
+  done(
+    r.ok ? `네이버 카페에서 후기 ${r.found}건을 찾았고, 새 후기 ${r.added}건을 추가했어요.` : `가져오기 실패: ${r.error}`,
+    "/admin/reviews",
+  );
+}
+
+export async function toggleReviewHidden(id: string) {
+  await requireStaff();
+  await db.update(tables.reviews).set({ hidden: sql`not ${tables.reviews.hidden}` }).where(eq(tables.reviews.id, id));
+  done("공개 상태를 바꿨어요.", "/admin/reviews");
+}
+
+export async function toggleReviewPinned(id: string) {
+  await requireStaff();
+  await db.update(tables.reviews).set({ pinned: sql`not ${tables.reviews.pinned}` }).where(eq(tables.reviews.id, id));
+  done("추천(상단 고정)을 바꿨어요.", "/admin/reviews");
+}
+
+export async function toggleReviewCategory(id: string) {
+  await requireStaff();
+  await db
+    .update(tables.reviews)
+    .set({ category: sql`case when ${tables.reviews.category} = 'TOUR' then 'LESSON'::review_category else 'TOUR'::review_category end` })
+    .where(eq(tables.reviews.id, id));
+  done("분류를 바꿨어요.", "/admin/reviews");
+}
+
+export async function addReviewManually(formData: FormData) {
+  await requireStaff();
+  const { articleKeyOf, articleUrl, guessCategory } = await import("@/lib/reviews");
+  const url = String(formData.get("url") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const excerpt = String(formData.get("excerpt") ?? "").trim();
+  const category = formData.get("category") === "TOUR" ? "TOUR" : formData.get("category") === "LESSON" ? "LESSON" : null;
+  const key = articleKeyOf(url);
+  if (!key) done("딥테일 카페 글 주소가 아니에요. 카페 글을 열고 주소를 복사해 붙여넣어 주세요.", "/admin/reviews");
+  if (!title) done("제목을 입력해 주세요.", "/admin/reviews");
+  await db
+    .insert(tables.reviews)
+    .values({
+      articleKey: key,
+      url: articleUrl(key),
+      title,
+      excerpt: excerpt || null,
+      category: category ?? guessCategory(`${title} ${excerpt}`),
+      source: "MANUAL",
+    })
+    .onConflictDoUpdate({
+      target: tables.reviews.articleKey,
+      set: { title, excerpt: excerpt || null, source: "MANUAL", hidden: false, ...(category ? { category } : {}) },
+    });
+  done("후기를 추가했어요.", "/admin/reviews");
+}
