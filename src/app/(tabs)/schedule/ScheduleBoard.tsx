@@ -21,6 +21,7 @@ export type DayData = (
       joined: number;
     }
   | { kind: "booked"; id: string; t: number; time: string; location: string | null }
+  | { kind: "closure"; id: string; t: number; title: string }
 )[];
 
 const typeStyle: Record<ScheduleType, string> = {
@@ -74,7 +75,7 @@ export default function ScheduleBoard({
         <ol ref={stripRef} className="flex gap-1.5 overflow-x-auto px-3 py-3 [scrollbar-width:none]">
           {days.map(({ d, w }) => {
             const active = d === date;
-            const has = (data[d]?.length ?? 0) > 0;
+            const has = (data[d] ?? []).some((x) => x.kind !== "closure");
             return (
               <li key={d}>
                 <button
@@ -107,7 +108,7 @@ export default function ScheduleBoard({
           {md(date)} ({w})
         </h2>
 
-        {timeline.length === 0 && (
+        {timeline.every((t) => t.kind === "closure") && (
           <p className="rounded-2xl bg-white p-6 text-center text-sm text-ink-sub shadow-card">
             이 날은 등록된 일정이 없어요.
             <br />
@@ -117,7 +118,15 @@ export default function ScheduleBoard({
 
         <ul key={date} className="flex animate-fade-in flex-col gap-2.5">
           {timeline.map((t) =>
-            t.kind === "schedule" ? (
+            t.kind === "closure" ? (
+              <li
+                key={t.id}
+                className="flex items-center gap-2 rounded-2xl bg-ink/5 px-4 py-3 text-sm font-medium text-ink-sub"
+              >
+                <span aria-hidden>⛔</span>
+                {t.title} (종일)
+              </li>
+            ) : t.kind === "schedule" ? (
               <li key={t.id} className="flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-card">
                 <div className="flex items-center justify-between gap-2">
                   <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${typeStyle[t.type]}`}>

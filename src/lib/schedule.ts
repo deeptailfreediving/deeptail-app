@@ -11,6 +11,7 @@ export const scheduleTypeLabel = {
   REGULAR_CLASS: "정규수업",
   PAID_TRAINING: "유료트레이닝",
   OVERSEAS_TOUR: "해외투어",
+  CLOSURE: "휴관",
 } as const;
 
 export const ACTIVE_STATUSES = ["PENDING", "APPROVED"] as const;
@@ -68,6 +69,23 @@ export async function listBookedBetween(from: Date, to: Date) {
     .orderBy(asc(registrations.requestedStartsAt));
 }
 
+/** 그 수영장이 휴관인 날인지 (구글 캘린더 '○○풀 휴관') */
+export async function isClosed(locationId: string, start: Date, end: Date) {
+  const [s] = await db
+    .select({ id: schedules.id })
+    .from(schedules)
+    .where(
+      and(
+        eq(schedules.type, "CLOSURE"),
+        eq(schedules.locationId, locationId),
+        lt(schedules.startsAt, end),
+        gt(schedules.endsAt, start),
+      ),
+    )
+    .limit(1);
+  return Boolean(s);
+}
+
 /** 요청한 시간이 기존 일정·수업 신청과 겹치는지 (강사 한 명 기준, 장소 무관) */
 export async function hasConflict(start: Date, end: Date) {
   const [s] = await db
@@ -75,7 +93,8 @@ export async function hasConflict(start: Date, end: Date) {
     .from(schedules)
     .where(
       and(
-        inArray(schedules.type, ["REGULAR_CLASS", "PAID_TRAINING", "OVERSEAS_TOUR"]),
+        // 강사 한 명이 진행 → 정기트레이닝 시간에도 다른 수업 불가
+        inArray(schedules.type, ["REGULAR_CLASS", "PAID_TRAINING", "OVERSEAS_TOUR", "REGULAR_TRAINING"]),
         lt(schedules.startsAt, end),
         gt(schedules.endsAt, start),
       ),

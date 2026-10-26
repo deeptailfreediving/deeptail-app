@@ -141,6 +141,7 @@ export const scheduleTypeEnum = pgEnum("schedule_type", [
   "REGULAR_CLASS", // 정규수업 (횟수권 차감)
   "PAID_TRAINING", // 유료트레이닝
   "OVERSEAS_TOUR", // 해외투어
+  "CLOSURE", // 수영장 휴관 (구글 캘린더에서 가져옴)
 ]);
 
 export const schedules = pgTable(
@@ -161,6 +162,9 @@ export const schedules = pgTable(
     // 일정 생성 시 관리자 이름·연락처 자동 입력
     contactName: text("contact_name").notNull(),
     contactPhone: text("contact_phone").notNull(),
+    // 구글 캘린더에서 가져온 일정: 일정 고유값(반복 일정은 회차별) · 캘린더 원래 제목(관리자만 봄)
+    externalId: text("external_id").unique(),
+    externalTitle: text("external_title"),
     createdAt: createdAt(),
   },
   (t) => [index("schedules_starts_idx").on(t.startsAt)],

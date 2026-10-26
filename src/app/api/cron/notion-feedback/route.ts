@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { notifyIfFeedbackChanged } from "@/lib/feedbackNotify";
 import { listRecentlyEditedVideos, notionEnabled } from "@/lib/notion";
 import { reviewsEnabled, syncReviews } from "@/lib/reviews";
+import { gcalEnabled, syncCalendar } from "@/lib/gcal";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,7 +16,8 @@ export async function GET(req: Request) {
   }
   // 같은 작업에서 네이버 카페 후기도 하루 한 번 가져옴 (Vercel 무료 요금제는 예약 작업이 하루 1회)
   const reviews = reviewsEnabled() ? await syncReviews() : null;
-  if (!notionEnabled()) return NextResponse.json({ ok: false, reason: "NOTION_TOKEN 없음", reviews });
+  const calendar = gcalEnabled() ? await syncCalendar() : null;
+  if (!notionEnabled()) return NextResponse.json({ ok: false, reason: "NOTION_TOKEN 없음", reviews, calendar });
 
   const url = new URL(req.url);
   const seed = url.searchParams.get("seed") === "1";
@@ -28,5 +30,5 @@ export async function GET(req: Request) {
     const r = await notifyIfFeedbackChanged(v, { seedOnly: seed });
     notified += r.notified;
   }
-  return NextResponse.json({ ok: true, checked: videos.length, notified, seed, reviews });
+  return NextResponse.json({ ok: true, checked: videos.length, notified, seed, reviews, calendar });
 }

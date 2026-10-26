@@ -7,7 +7,7 @@ import { z } from "zod";
 import { db, tables } from "@/db";
 import { getSession } from "@/lib/auth";
 import { rentalFee, rentalModeForCourse, type RentalChoice, type RentalMode } from "@/lib/fees";
-import { ACTIVE_STATUSES, getSchedule, hasConflict, listMyEnrollments, practiceEligible } from "@/lib/schedule";
+import { ACTIVE_STATUSES, getSchedule, hasConflict, isClosed, listMyEnrollments, practiceEligible } from "@/lib/schedule";
 import { kst, SESSION_HOURS, START_TIMES, todayYmd } from "@/lib/time";
 
 export type ApplyState = { error?: string };
@@ -141,6 +141,9 @@ export async function apply(_: ApplyState, formData: FormData): Promise<ApplySta
 
     const [loc] = await db.select().from(tables.locations).where(eq(tables.locations.id, v.locationId));
     if (!loc) return { error: "장소를 다시 선택해 주세요." };
+    if (await isClosed(loc.id, start, end)) {
+      return { error: `${loc.name}은(는) 그날 휴관이에요. 다른 날짜나 장소를 골라 주세요.` };
+    }
     if (await hasConflict(start, end)) {
       return { error: "그 시간에는 이미 다른 수업이 있어요. 다른 시간을 골라 주세요." };
     }

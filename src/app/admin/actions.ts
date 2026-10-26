@@ -390,3 +390,15 @@ export async function addReviewManually(formData: FormData) {
     });
   done("후기를 추가했어요.", "/admin/reviews");
 }
+
+// ─────────────── 구글 캘린더 ───────────────
+
+export async function syncCalendarNow() {
+  await requireStaff();
+  const { syncCalendar } = await import("@/lib/gcal");
+  const r = await syncCalendar();
+  done(
+    r.ok ? `캘린더 일정 ${r.imported}건을 반영했어요.${r.removed ? ` 지워진 일정 ${r.removed}건은 앱에서도 지웠어요.` : ""}` : `읽기 실패: ${r.error}`,
+    "/admin/schedules",
+  );
+}

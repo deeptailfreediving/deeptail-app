@@ -15,6 +15,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.36.4",
+    "ical.js": "^2.2.1",
     "next": "14.2.15",
     "next-auth": "^4.24.10",
     "pg": "^8.13.1",
