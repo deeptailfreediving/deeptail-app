@@ -31,8 +31,8 @@ export default async function SchedulePage() {
     const to = kst(d, "23:59").getTime();
     const on = (s: Date, e: Date) => s.getTime() < to && e.getTime() > from;
     const today_ = items.filter((s) => on(s.startsAt, s.endsAt));
-    // 정규수업·유료트레이닝 일정(구글 캘린더에서 온 수업 포함)은 이름 없이 '수업 예약됨'으로만
-    const isPrivate = (t: string) => t === "REGULAR_CLASS" || t === "PAID_TRAINING";
+    // 정규수업(규칙에 안 맞은 강사 일정 포함)은 이름 없이 '수업 예약됨'으로만
+    const isPrivate = (t: string) => t === "REGULAR_CLASS";
     data[d] = [
       ...today_
         .filter((s) => s.type === "CLOSURE")

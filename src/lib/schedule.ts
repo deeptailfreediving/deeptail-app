@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { db, tables } from "@/db";
 import { canJoinPractice } from "./eligibility";
 import { kst } from "./time";
@@ -93,8 +93,11 @@ export async function hasConflict(start: Date, end: Date) {
     .from(schedules)
     .where(
       and(
-        // 강사 한 명이 진행 → 정기트레이닝 시간에도 다른 수업 불가
-        inArray(schedules.type, ["REGULAR_CLASS", "PAID_TRAINING", "OVERSEAS_TOUR", "REGULAR_TRAINING"]),
+        // 강사 한 명이 진행 → 정기트레이닝·캘린더 강습(자율연습반으로 공개) 시간에도 다른 수업 불가
+        or(
+          inArray(schedules.type, ["REGULAR_CLASS", "PAID_TRAINING", "OVERSEAS_TOUR", "REGULAR_TRAINING"]),
+          and(isNotNull(schedules.externalId), ne(schedules.type, "CLOSURE")),
+        ),
         lt(schedules.startsAt, end),
         gt(schedules.endsAt, start),
       ),

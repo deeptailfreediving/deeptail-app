@@ -34,27 +34,78 @@ const PLACES: { re: RegExp; name: string }[] = [
 
 const CLASS_WORDS = /체험|아이다|aida|레벨|\d\s*차|이론|반\b|반$|수업|강습|교육/i;
 
+// 이름이 아닌 낱말 (이름 세기에서 뺌)
+const NOT_NAMES = new Set([
+  "체험", "이론", "정트", "트레이닝", "레벨", "아이다", "에이다", "수원", "성남", "딥스", "대전", "올팍", "오산",
+  "파라", "잠실", "예약", "안함", "예약안함", "현장", "카드", "결제", "카드결제", "취소", "취소됨", "휴관", "투어",
+  "교육", "수업", "강습", "정규", "보강", "주니어", "키즈", "자율", "연습", "개인", "그룹",
+]);
+
+/** 일정 이름 속 교육생 이름 수 (한글 2~4글자 낱말, 과정·장소·회차 낱말 제외) */
+export function countNames(summary: string) {
+  return summary
+    .split(/[\s,·/()]+/)
+    .filter((t) => /^[가-힣]{2,4}$/.test(t) && !NOT_NAMES.has(t) && !/(반|차|풀)$/.test(t)).length;
+}
+
+// 딥스테이션: 한 타임 최대 3명 (캘린더에 적힌 교육생 + 앱에서 신청하는 사람)
+const DEEP_MAX = 3;
+
 export type Classified = {
   type: ScheduleType;
-  title: string; // 앱에 보이는 제목 (수업은 이름 없이)
+  title: string; // 앱에 보이는 제목 (교육생 이름 없이)
   place: string | null;
   known: boolean; // 규칙에 딱 맞았는지 (아니면 관리자 화면 '확인 필요')
+  capacity?: number | null; // 앱에서 신청할 수 있는 인원 (null = 제한 없음)
+  feeKind?: "DEEP_TRAINING"; // 참가비: 딥스 1:2 유료트레이닝 요금
+  note?: string;
 };
 
-/** 캘린더 일정 이름 → 앱 일정 종류. 취소된 일정은 null */
+/**
+ * 캘린더 일정 이름 → 앱 일정 종류. 취소된 일정은 null
+ *
+ * 규칙 (위에서부터 먼저 맞는 것)
+ *  1. '취소'            → 앱에 안 올림
+ *  2. '휴관'            → 그 수영장 휴관 (신청 막음)
+ *  3. '정트 + 장소'      → 정기트레이닝 (참여 신청)
+ *  4. '투어'            → 해외투어 (참여 신청)
+ *  5. '딥스' + 교육생 이름 → 딥스테이션 유료트레이닝 (이름 1명 → 2명, 2명 → 1명, 3명 이상 → 마감)
+ *  6. 이름 + 과정·회차 + 장소 (예: 권보규 아이다2 2차 수원) → 교육생에겐 자율연습반 (참여 신청)
+ *  7. 그 밖                → 이름 없이 '수업 예약됨' (신청 불가, 관리자 화면 '확인 필요')
+ */
 export function classify(summary: string): Classified | null {
   const s = summary.trim();
   if (!s || /취소/.test(s)) return null;
   const place = PLACES.find((p) => p.re.test(s))?.name ?? null;
+  const names = countNames(s);
 
   if (/휴관|휴장/.test(s)) return { type: "CLOSURE", title: `${place ?? s.replace(/\s*휴관|\s*휴장/, "")} 휴관`, place, known: true };
   if (/정트|정기\s*트레이닝/.test(s)) return { type: "REGULAR_TRAINING", title: "정기트레이닝", place, known: true };
-  if (/자율/.test(s)) return { type: "SELF_PRACTICE", title: "자율연습반", place, known: true };
   if (/투어/.test(s)) return { type: "OVERSEAS_TOUR", title: s, place, known: true };
-  if (/트레이닝|트레닝|1\s*:\s*[12]/.test(s)) return { type: "PAID_TRAINING", title: "유료트레이닝", place, known: true };
-  // 그 밖의 일정은 모두 '강사가 바쁜 시간'으로 보고 이름 없이 '수업 예약됨'
-  // '이름 + 장소'(예: 김주윤 딥스)도 수업으로 봄
-  return { type: "REGULAR_CLASS", title: "정규수업", place, known: CLASS_WORDS.test(s) || place !== null };
+  if (place === "딥스테이션" && names > 0) {
+    return {
+      type: "PAID_TRAINING",
+      title: "딥스테이션 유료트레이닝",
+      place,
+      known: true,
+      capacity: Math.max(0, DEEP_MAX - names),
+      feeKind: "DEEP_TRAINING",
+      note: "강사와 함께하는 딥스테이션 트레이닝이에요. 신청 후 강사 확인을 거쳐 확정돼요.",
+    };
+  }
+  // 이론 수업은 물에 들어가지 않으니 자율연습반으로 열지 않음
+  if (names > 0 && CLASS_WORDS.test(s) && place && !/이론/.test(s)) {
+    return {
+      type: "SELF_PRACTICE",
+      title: "자율연습반",
+      place,
+      known: true,
+      capacity: null,
+      note: "강사 강습과 같은 시간·장소에서 진행돼요.",
+    };
+  }
+  // 강사 일정은 있지만 규칙에 맞지 않음 → 이름 없이 '수업 예약됨'
+  return { type: "REGULAR_CLASS", title: "정규수업", place, known: false };
 }
 
 type Occurrence = { key: string; summary: string; startsAt: Date; endsAt: Date };
@@ -179,6 +230,10 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
       .limit(1);
     if (!admin) throw new Error("관리자 계정이 없어요");
     const locIds = await locationIds(rows.map((x) => x.c.place).filter((p): p is string => !!p));
+    const [deep] = await db
+      .select({ price: tables.trainingOptions.price })
+      .from(tables.trainingOptions)
+      .where(eq(tables.trainingOptions.code, "PT_1_2_DEEP"));
 
     const values = rows.map(({ o, c }) => ({
       type: c.type,
@@ -187,7 +242,9 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
       startsAt: o.startsAt,
       endsAt: o.endsAt,
       minLevel: c.type === "REGULAR_TRAINING" || c.type === "SELF_PRACTICE" ? 2 : null,
-      note: "",
+      capacity: c.capacity ?? null,
+      fee: c.feeKind === "DEEP_TRAINING" ? (deep?.price ?? null) : null,
+      note: c.note ?? "",
       createdById: admin.id,
       contactName: admin.name,
       contactPhone: admin.phone ?? "",
@@ -208,6 +265,9 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
             startsAt: sql`excluded.starts_at`,
             endsAt: sql`excluded.ends_at`,
             minLevel: sql`excluded.min_level`,
+            capacity: sql`excluded.capacity`,
+            fee: sql`excluded.fee`,
+            note: sql`excluded.note`,
             externalTitle: sql`excluded.external_title`,
           },
         });

@@ -83,11 +83,11 @@ export async function apply(_: ApplyState, formData: FormData): Promise<ApplySta
   let newId: string;
 
   if (v.mode === "join") {
-    // ── 기존 일정 참여 (자율연습반 · 정기트레이닝 · 투어) ──
+    // ── 기존 일정 참여 (자율연습반 · 정기트레이닝 · 투어 · 딥스 유료트레이닝) ──
     const s = await getSchedule(v.scheduleId);
     if (!s) return { error: "일정을 찾을 수 없어요." };
     if (s.startsAt < new Date()) return { error: "이미 지난 일정이에요." };
-    if (!["SELF_PRACTICE", "REGULAR_TRAINING", "OVERSEAS_TOUR"].includes(s.type)) {
+    if (!["SELF_PRACTICE", "REGULAR_TRAINING", "OVERSEAS_TOUR", "PAID_TRAINING"].includes(s.type)) {
       return { error: "이 일정은 참여 신청을 받지 않아요." };
     }
     if ((s.type === "SELF_PRACTICE" || s.type === "REGULAR_TRAINING") && !(await practiceEligible(studentId))) {
@@ -120,8 +120,8 @@ export async function apply(_: ApplyState, formData: FormData): Promise<ApplySta
       .insert(tables.registrations)
       .values({
         kind: "JOIN_SESSION",
-        // 자율연습·정기트레이닝은 바로 확정, 투어는 확인 후 확정
-        status: s.type === "OVERSEAS_TOUR" ? "PENDING" : "APPROVED",
+        // 자율연습·정기트레이닝은 바로 확정, 투어·딥스 유료트레이닝은 강사 확인 후 확정
+        status: s.type === "OVERSEAS_TOUR" || s.type === "PAID_TRAINING" ? "PENDING" : "APPROVED",
         studentId,
         scheduleId: s.id,
         locationId: s.locationId,

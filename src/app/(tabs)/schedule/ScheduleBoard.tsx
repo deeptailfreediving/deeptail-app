@@ -133,7 +133,11 @@ export default function ScheduleBoard({
                     {t.typeLabel}
                   </span>
                   <span className="text-xs text-ink-mute">
-                    {t.capacity != null ? `${t.joined} / ${t.capacity}명` : `${t.joined}명 참여`}
+                    {t.capacity != null
+                      ? t.capacity - t.joined > 0
+                        ? `남은 자리 ${t.capacity - t.joined}명`
+                        : "마감"
+                      : `${t.joined}명 참여`}
                   </span>
                 </div>
                 <p className="text-[15px] font-bold">{t.title}</p>
@@ -142,7 +146,7 @@ export default function ScheduleBoard({
                   {t.fee ? ` · ${t.fee}` : " · 무료"}
                 </p>
                 {t.note && <p className="text-xs text-ink-mute">{t.note}</p>}
-                {(t.type === "SELF_PRACTICE" || t.type === "REGULAR_TRAINING" || t.type === "OVERSEAS_TOUR") &&
+                {(t.type === "SELF_PRACTICE" || t.type === "REGULAR_TRAINING" || t.type === "OVERSEAS_TOUR" || t.type === "PAID_TRAINING") &&
                   (t.capacity == null || t.joined < t.capacity ? (
                     <Link
                       href={`/schedule/apply?join=${t.id}`}
