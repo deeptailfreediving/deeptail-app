@@ -114,7 +114,11 @@ export default function ApplyForm({
           </Card>
           {blocked && (
             <p className="rounded-xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-              자율연습반 · 정기트레이닝은 <b>AIDA 2 · AIDA 3 수강생</b>이 <b>2회차 강습 이후</b>부터 참여할 수 있어요.
+              자율연습반 · 정기트레이닝은 <b>레벨 2 이상 자격</b>이 있거나, <b>AIDA 2 · AIDA 3 수강생</b>이{" "}
+              <b>2회차 강습 이후</b>부터 참여할 수 있어요.
+              <a href="/my" className="mt-1 block font-bold underline">
+                자격증이 있다면 마이페이지에서 등록하기
+              </a>
             </p>
           )}
         </>

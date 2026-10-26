@@ -4,6 +4,9 @@
 
 body {
   @apply bg-canvas text-ink;
+  /* 한글 단어가 줄 끝에서 쪼개지지 않게 */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 /* ───── 터치 반응 ─────

@@ -1,16 +1,40 @@
-import PageHeader, { ComingSoon } from "@/components/PageHeader";
+import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
+import { ChevronIcon } from "@/components/icons";
 
 export const metadata = { title: "교육자료 | 딥테일 프리다이빙" };
 
-export default function Page() {
+const items = [
+  { href: "/materials/equalizing", title: "이퀄라이징", desc: "귀가 아프기 전에 끝내는 법 · 방법 4가지 · 안 될 때", ready: true },
+  { href: "/pools", title: "풀장 이용 안내", desc: "입장료 · 준비물 · 도착해서 할 일", ready: true },
+  { href: "", title: "준비호흡 · 회복호흡", desc: "곧 올라와요", ready: false },
+  { href: "", title: "부력 이해하기", desc: "곧 올라와요", ready: false },
+];
+
+export default function MaterialsPage() {
   return (
     <>
       <PageHeader title="교육자료" back="/" />
-      <ComingSoon>
-        다음 단계에서 만들 화면이에요.
-        <br />
-        교육생 전용 이론 동영상 (유튜브 일부공개)
-      </ComingSoon>
+      <ul className="flex flex-col gap-2.5 p-4">
+        {items.map((it) =>
+          it.ready ? (
+            <li key={it.title}>
+              <Link href={it.href} className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card">
+                <span className="flex flex-1 flex-col gap-0.5">
+                  <span className="text-base font-bold">{it.title}</span>
+                  <span className="text-xs text-ink-sub">{it.desc}</span>
+                </span>
+                <ChevronIcon className="h-5 w-5 text-ink-mute" />
+              </Link>
+            </li>
+          ) : (
+            <li key={it.title} className="flex flex-col gap-0.5 rounded-2xl border border-dashed border-line p-4">
+              <span className="text-base font-bold text-ink-mute">{it.title}</span>
+              <span className="text-xs text-ink-mute">{it.desc}</span>
+            </li>
+          ),
+        )}
+      </ul>
     </>
   );
 }

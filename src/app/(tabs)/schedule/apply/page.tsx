@@ -32,7 +32,8 @@ export default async function ApplyPage({
   if (searchParams.join) {
     const s = await getSchedule(searchParams.join);
     if (!s) notFound();
-    const needsEligibility = s.type === "SELF_PRACTICE" || s.type === "REGULAR_TRAINING";
+    const needsEligibility =
+      s.type === "SELF_PRACTICE" || s.type === "REGULAR_TRAINING" || (s.type === "PAID_TRAINING" && s.location === "딥스테이션");
     const eligible = needsEligibility ? await practiceEligible(session.user.id) : true;
     return (
       <>

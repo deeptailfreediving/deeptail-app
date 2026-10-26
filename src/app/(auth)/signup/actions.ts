@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, tables } from "@/db";
+import { parseLicense, requestLicense } from "@/lib/license";
 
 const schema = z
   .object({
@@ -37,6 +38,12 @@ export async function signup(_: SignupState, formData: FormData): Promise<Signup
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const v = parsed.data;
+  const license = parseLicense({
+    agency: String(formData.get("licenseAgency") ?? ""),
+    level: String(formData.get("licenseLevel") ?? ""),
+    image: String(formData.get("licenseImage") ?? ""),
+  });
+  if (typeof license === "string") return { error: license };
 
   // 만 14세 미만은 보호자 동의 절차가 필요 — 절차 확정 전까지 앱 가입을 막고 안내
   if (ageOn(v.birthDate) < 14) {
@@ -49,13 +56,16 @@ export async function signup(_: SignupState, formData: FormData): Promise<Signup
     .where(eq(tables.users.email, v.email));
   if (exists) return { error: "이미 가입된 이메일이에요." };
 
-  await db.insert(tables.users).values({
+  const [user] = await db.insert(tables.users).values({
     name: v.name,
     email: v.email,
     phone: v.phone.replace(/-/g, "").replace(/(\d{3})(\d{3,4})(\d{4})/, "$1-$2-$3"),
     birthDate: v.birthDate,
     passwordHash: await bcrypt.hash(v.password, 10),
-  });
+  }).returning({ id: tables.users.id });
+
+  // 자격증을 올렸으면 승인 요청 (관리자 확인 후 이름 옆 레벨 표시)
+  if (license) await requestLicense(user.id, license);
 
   redirect("/login?joined=1");
 }

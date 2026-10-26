@@ -69,3 +69,16 @@ export const BackIcon = ({ className }: P) => (
     <path d="M15 6l-6 6 6 6" />
   </svg>
 );
+export const PoolIcon = ({ className }: P) => (
+  <svg {...base} className={className}>
+    <path d="M7 15V5a2 2 0 0 1 4 0M17 15V5a2 2 0 0 0-4 0" />
+    <path d="M7 9h10M7 12h10" />
+    <path d="M3 18c1.5 1.3 3 1.3 4.5 0s3-1.3 4.5 0 3 1.3 4.5 0 3-1.3 4.5 0" />
+  </svg>
+);
+export const EarIcon = ({ className }: P) => (
+  <svg {...base} className={className}>
+    <path d="M7 10a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-5.5 1.5" />
+    <path d="M10 10a2 2 0 0 1 4 0c0 1.5-1.5 2-1.5 3.5" />
+  </svg>
+);

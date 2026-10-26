@@ -50,6 +50,8 @@ export function countNames(summary: string) {
 
 // 딥스테이션: 한 타임 최대 3명 (캘린더에 적힌 교육생 + 앱에서 신청하는 사람)
 const DEEP_MAX = 3;
+// 딥스테이션 (교육 참여 시) 유료트레이닝 요금 — 안내문 기준, 입장료 별도
+const DEEP_WITH_CLASS_FEE = 50_000;
 
 export type Classified = {
   type: ScheduleType;
@@ -57,7 +59,7 @@ export type Classified = {
   place: string | null;
   known: boolean; // 규칙에 딱 맞았는지 (아니면 관리자 화면 '확인 필요')
   capacity?: number | null; // 앱에서 신청할 수 있는 인원 (null = 제한 없음)
-  feeKind?: "DEEP_TRAINING" | "POOL_TRAINING"; // 참가비: 1:2 유료트레이닝 요금 (딥스 / 5m 풀)
+  feeKind?: "DEEP_TRAINING" | "DEEP_WITH_CLASS" | "POOL_TRAINING"; // 참가비 (안내문 유료트레이닝 표 기준)
   note?: string;
 };
 
@@ -90,7 +92,8 @@ export function classify(summary: string): Classified | null {
       place,
       known: true,
       capacity: Math.max(0, DEEP_MAX - names),
-      feeKind: "DEEP_TRAINING",
+      // 강습 중인 일정에 함께 들어가면 '딥스테이션 (교육 참여 시)' 요금
+      feeKind: CLASS_WORDS.test(s) ? "DEEP_WITH_CLASS" : "DEEP_TRAINING",
       note: "강사와 함께하는 딥스테이션 트레이닝이에요. 신청 후 강사 확인을 거쳐 확정돼요.",
     };
   }
@@ -262,7 +265,14 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
       endsAt: endOf(o, c),
       minLevel: c.type === "REGULAR_TRAINING" || c.type === "SELF_PRACTICE" ? 2 : null,
       capacity: c.capacity ?? null,
-      fee: c.feeKind === "DEEP_TRAINING" ? price("PT_1_2_DEEP") : c.feeKind === "POOL_TRAINING" ? price("PT_1_2_5M") : null,
+      fee:
+        c.feeKind === "DEEP_TRAINING"
+          ? price("PT_1_2_DEEP")
+          : c.feeKind === "DEEP_WITH_CLASS"
+            ? DEEP_WITH_CLASS_FEE
+            : c.feeKind === "POOL_TRAINING"
+              ? price("PT_1_2_5M")
+              : null,
       note: c.note ?? "",
       createdById: admin.id,
       contactName: admin.name,

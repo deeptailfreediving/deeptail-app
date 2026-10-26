@@ -153,6 +153,7 @@ export async function syncReviews({ fresh = true }: { fresh?: boolean } = {}): P
           .where(and(eq(reviews.articleKey, k), eq(reviews.source, "SEARCH")));
       }
     }
+    await fillReviewImages(fresh).catch(() => undefined);
     result = { at, ok: true, found: found.size, added };
   } catch (e) {
     result = { at, ok: false, found: 0, added: 0, error: (e as Error).message };
@@ -162,6 +163,45 @@ export async function syncReviews({ fresh = true }: { fresh?: boolean } = {}): P
     .values({ key: SYNC_KEY, value: JSON.stringify(result) })
     .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(result) } });
   return result;
+}
+
+// ─────────────── 미리보기 사진 ───────────────
+// 검색 API는 사진을 주지 않아서, 카페 글 주소의 공유용 대표 이미지(og:image)를 읽어 봄.
+// (카카오톡에 카페 글 링크를 보내면 뜨는 그 사진). 못 찾으면 관리자 화면에서 직접 올릴 수 있음.
+const IMAGES_PER_SYNC = 15;
+
+export async function fetchOgImage(url: string, fresh = true): Promise<string | null> {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" },
+    redirect: "follow",
+    ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 86400 } }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) return null;
+  const html = (await res.text()).slice(0, 200_000);
+  const m =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  const img = m?.[1]?.replace(/&amp;/g, "&");
+  return img && /^https?:\/\//.test(img) ? img.replace(/^http:/, "https:") : null;
+}
+
+async function fillReviewImages(fresh: boolean) {
+  const todo = await db
+    .select({ id: reviews.id, url: reviews.url })
+    .from(reviews)
+    .where(eq(reviews.imageChecked, false))
+    .limit(IMAGES_PER_SYNC);
+  for (const r of todo) {
+    const img = await fetchOgImage(r.url, fresh).catch(() => null);
+    await db.update(reviews).set({ imageUrl: img, imageChecked: true }).where(eq(reviews.id, r.id));
+  }
+  // 여러 글이 같은 사진이면 글 사진이 아니라 카페 기본 이미지 → 지움 (직접 올린 사진은 그대로)
+  await db.execute(sql`
+    update ${reviews} set image_url = null
+    where image_url like 'http%' and image_url in (
+      select image_url from ${reviews} where image_url like 'http%' group by image_url having count(*) >= 3
+    )`);
 }
 
 export async function lastSync(): Promise<SyncResult | null> {
@@ -189,6 +229,7 @@ export async function listPublicReviews() {
       excerpt: reviews.excerpt,
       category: reviews.category,
       pinned: reviews.pinned,
+      imageUrl: reviews.imageUrl,
     })
     .from(reviews)
     .where(eq(reviews.hidden, false))

@@ -9,7 +9,25 @@ type Review = {
   excerpt: string | null;
   category: "LESSON" | "TOUR";
   pinned: boolean;
+  imageUrl: string | null;
 };
+
+// 작은 미리보기 사진 (불러오지 못하면 숨김)
+function Thumb({ src }: { src: string }) {
+  const [ok, setOk] = useState(true);
+  if (!ok) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setOk(false)}
+      className="h-[72px] w-[72px] shrink-0 rounded-xl bg-canvas object-cover"
+    />
+  );
+}
 
 const tabs = [
   { key: "ALL", label: "전체" },
@@ -57,8 +75,9 @@ export default function ReviewList({ items }: { items: Review[] }) {
               href={r.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col gap-1.5 rounded-2xl bg-white p-4 shadow-card"
+              className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-card"
             >
+              <span className="flex min-w-0 flex-1 flex-col gap-1.5">
               <span className="flex items-center gap-1.5">
                 <span
                   className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
@@ -72,6 +91,8 @@ export default function ReviewList({ items }: { items: Review[] }) {
               <span className="text-[15px] font-bold leading-snug">{r.title}</span>
               {r.excerpt && <span className="line-clamp-3 text-[13px] leading-relaxed text-ink-sub">{r.excerpt}</span>}
               <span className="text-xs font-medium text-brand">카페에서 전체 보기 ↗</span>
+              </span>
+              {r.imageUrl && <Thumb src={r.imageUrl} />}
             </a>
           </li>
         ))}

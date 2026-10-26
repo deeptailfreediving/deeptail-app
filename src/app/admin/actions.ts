@@ -402,3 +402,48 @@ export async function syncCalendarNow() {
     "/admin/schedules",
   );
 }
+
+// ─────────────── 자격 승인 ───────────────
+
+export async function approveLicense(id: string) {
+  const session = await requireStaff();
+  const [req] = await db.select().from(tables.licenseRequests).where(eq(tables.licenseRequests.id, id));
+  if (!req || req.status !== "PENDING") done("이미 처리된 요청이에요.");
+  await db.transaction(async (tx) => {
+    await tx
+      .update(tables.licenseRequests)
+      .set({ status: "APPROVED", reviewedById: session.user.id, reviewedAt: new Date() })
+      .where(eq(tables.licenseRequests.id, id));
+    await tx
+      .update(tables.users)
+      .set({ licenseLevel: req.level, licenseAgency: req.agency })
+      .where(eq(tables.users.id, req.userId));
+  });
+  done(`${req.agency} 레벨 ${req.level}로 승인했어요.`);
+}
+
+export async function rejectLicense(id: string, formData: FormData) {
+  const session = await requireStaff();
+  const note = String(formData.get("note") ?? "").trim().slice(0, 100);
+  await db
+    .update(tables.licenseRequests)
+    .set({ status: "REJECTED", note, reviewedById: session.user.id, reviewedAt: new Date() })
+    .where(and(eq(tables.licenseRequests.id, id), eq(tables.licenseRequests.status, "PENDING")));
+  done("자격 요청을 반려했어요.");
+}
+
+// 후기 미리보기 사진: 직접 올리기 / 빼기
+export async function setReviewImage(id: string, formData: FormData) {
+  await requireStaff();
+  const { saveUpload, uploadUrl } = await import("@/lib/uploads");
+  const upId = await saveUpload("REVIEW", String(formData.get("image") ?? ""));
+  if (!upId) done("사진을 골라 주세요.", "/admin/reviews");
+  await db.update(tables.reviews).set({ imageUrl: uploadUrl(upId), imageChecked: true }).where(eq(tables.reviews.id, id));
+  done("미리보기 사진을 바꿨어요.", "/admin/reviews");
+}
+
+export async function clearReviewImage(id: string) {
+  await requireStaff();
+  await db.update(tables.reviews).set({ imageUrl: null, imageChecked: true }).where(eq(tables.reviews.id, id));
+  done("미리보기 사진을 뺐어요.", "/admin/reviews");
+}

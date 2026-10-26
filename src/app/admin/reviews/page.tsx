@@ -2,12 +2,15 @@ import { requireStaff } from "@/lib/staff";
 import { CAFE_URL, REVIEW_BOARD, categoryLabel, lastSync, listAllReviews, reviewsEnabled } from "@/lib/reviews";
 import {
   addReviewManually,
+  clearReviewImage,
+  setReviewImage,
   syncReviewsNow,
   toggleReviewCategory,
   toggleReviewHidden,
   toggleReviewPinned,
 } from "../actions";
 import { ActionButton, Empty, Flash, Section } from "../ui";
+import ImagePicker from "@/components/ImagePicker";
 
 export const dynamic = "force-dynamic";
 
@@ -90,9 +93,15 @@ export default async function AdminReviews({ searchParams }: { searchParams: { m
                   {r.hidden && <span className="rounded-md bg-canvas px-2 py-0.5 text-ink-mute">숨김</span>}
                   {r.source === "MANUAL" && <span className="text-ink-mute">직접 추가</span>}
                 </div>
-                <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold">
-                  {r.title} <span className="text-brand">↗</span>
-                </a>
+                <div className="flex items-start gap-3">
+                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-sm font-bold">
+                    {r.title} <span className="text-brand">↗</span>
+                  </a>
+                  {r.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.imageUrl} alt="" referrerPolicy="no-referrer" className="h-14 w-14 shrink-0 rounded-lg bg-canvas object-cover" />
+                  )}
+                </div>
                 {r.excerpt && <p className="line-clamp-2 text-xs text-ink-sub">{r.excerpt}</p>}
                 <div className="flex flex-wrap gap-1.5">
                   <form action={toggleReviewHidden.bind(null, r.id)}>
@@ -104,7 +113,19 @@ export default async function AdminReviews({ searchParams }: { searchParams: { m
                   <form action={toggleReviewPinned.bind(null, r.id)}>
                     <button className={small}>{r.pinned ? "추천 해제" : "추천(맨 위)"}</button>
                   </form>
+                  {r.imageUrl && (
+                    <form action={clearReviewImage.bind(null, r.id)}>
+                      <button className={small}>사진 빼기</button>
+                    </form>
+                  )}
                 </div>
+                <details>
+                  <summary className="cursor-pointer text-xs font-bold text-brand">미리보기 사진 {r.imageUrl ? "바꾸기" : "올리기"}</summary>
+                  <form action={setReviewImage.bind(null, r.id)} className="mt-2 flex flex-col gap-2">
+                    <ImagePicker name="image" label="사진" maxSize={600} hint="카페 글의 사진을 저장해서 올려 주세요. 작게 줄여서 저장돼요." />
+                    <button className="min-h-10 rounded-xl bg-brand text-sm font-bold text-white">저장</button>
+                  </form>
+                </details>
               </li>
             ))}
           </ul>

@@ -14,8 +14,12 @@ export async function GET() {
     .from(tables.enrollments)
     .where(eq(tables.enrollments.studentId, session.user.id));
   const remaining = rows.reduce((sum, r) => sum + (r.total - r.used), 0);
+  const [u] = await db
+    .select({ level: tables.users.licenseLevel })
+    .from(tables.users)
+    .where(eq(tables.users.id, session.user.id));
   return NextResponse.json(
-    { user: { name: session.user.name, remaining } },
+    { user: { name: session.user.name, remaining, level: u?.level ?? null } },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

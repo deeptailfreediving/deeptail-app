@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { ErrorText, Field, PrimaryButton } from "@/components/form";
+import LicenseFields from "@/components/LicenseFields";
 import { signup, type SignupState } from "./actions";
 
 function Submit() {
@@ -40,12 +41,14 @@ export default function SignupPage() {
         />
         <Field label="비밀번호 확인" name="passwordConfirm" type="password" autoComplete="new-password" />
 
+        <LicenseFields />
+
         <label className="flex items-start gap-3 rounded-xl bg-canvas p-4 text-sm">
           <input type="checkbox" name="agreePrivacy" required className="mt-0.5 h-5 w-5 accent-brand" />
           <span>
             <b>[필수]</b> 개인정보 수집·이용에 동의합니다.
             <span className="mt-1 block text-xs text-ink-mute">
-              이름, 이메일, 휴대폰 번호, 생년월일 · 교육 신청과 안내에 사용 · [보관 기간]
+              이름, 이메일, 휴대폰 번호, 생년월일, (선택) 자격증 사진 · 교육 신청·자격 확인과 안내에 사용 · [보관 기간]
             </span>
           </span>
         </label>

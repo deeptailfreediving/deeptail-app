@@ -38,8 +38,41 @@ export const users = pgTable("users", {
   birthDate: timestamp("birth_date", { mode: "date" }),
   // 노션 '로그북 DB'의 교육생 페이지 id (강습영상 연동용)
   notionStudentPageId: text("notion_student_page_id"),
+  // 프리다이빙 자격 레벨 (관리자 승인 후 확정, 이름 옆에 1·2·3·4로 표시)
+  licenseLevel: integer("license_level"),
+  licenseAgency: text("license_agency"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
+});
+
+// ─────────────── 올린 사진 (자격증 · 후기 미리보기) ───────────────
+export const uploadKindEnum = pgEnum("upload_kind", ["LICENSE", "REVIEW"]);
+
+export const uploads = pgTable("uploads", {
+  id: id(),
+  kind: uploadKindEnum("kind").notNull(),
+  mime: text("mime").notNull(),
+  data: text("data").notNull(), // base64 (앱에서 줄여서 올림, 1MB 이하)
+  userId: text("user_id"),
+  createdAt: createdAt(),
+});
+
+// 자격 승인 요청: 회원이 자격증 사진과 레벨을 올리면 관리자가 확인 후 승인
+export const licenseStatusEnum = pgEnum("license_status", ["PENDING", "APPROVED", "REJECTED"]);
+
+export const licenseRequests = pgTable("license_requests", {
+  id: id(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  agency: text("agency").notNull(), // AIDA · PADI · SSI · CMAS · 기타
+  level: integer("level").notNull(), // 1~4
+  imageId: text("image_id"),
+  status: licenseStatusEnum("status").notNull().default("PENDING"),
+  reviewedById: text("reviewed_by_id"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  note: text("note").notNull().default(""),
+  createdAt: createdAt(),
 });
 
 // ─────────────── 교육과정 · 수강권 ───────────────
@@ -343,6 +376,9 @@ export const reviews = pgTable("reviews", {
   source: reviewSourceEnum("source").notNull().default("SEARCH"),
   hidden: boolean("hidden").notNull().default(false),
   pinned: boolean("pinned").notNull().default(false),
+  // 미리보기 사진: 카페 글 대표 이미지 주소(자동) 또는 관리자가 올린 사진(uploads)
+  imageUrl: text("image_url"),
+  imageChecked: boolean("image_checked").notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

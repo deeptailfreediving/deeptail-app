@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AccountButton, Greeting, MembersOnlyBadge } from "@/components/HomeUser";
 import { categoryLabel, formatDate, listNotices } from "@/lib/notices";
-import { CalendarIcon, CapIcon, ChatIcon, ChevronIcon, PhotoIcon, PlayIcon } from "@/components/icons";
+import { CalendarIcon, CapIcon, ChatIcon, ChevronIcon, EarIcon, PhotoIcon, PlayIcon, PoolIcon } from "@/components/icons";
 
 // 홈은 미리 만들어 두고(공지 바뀌면 즉시 갱신) 로그인 정보만 따로 불러와서 바로 열림
 export const revalidate = 300;
@@ -77,6 +77,8 @@ export default async function HomePage() {
             <Tile href="/gallery" label="사진 · 영상" Icon={PhotoIcon} />
             <Tile href="/reviews" label="강습 · 투어 후기" Icon={ChatIcon} />
             <Tile href="/materials" label="교육자료" Icon={PlayIcon} locked />
+            <Tile href="/pools" label="풀장 이용 안내" Icon={PoolIcon} />
+            <Tile href="/materials/equalizing" label="이퀄라이징" Icon={EarIcon} locked />
           </div>
         </section>
       </main>

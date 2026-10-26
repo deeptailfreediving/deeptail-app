@@ -152,6 +152,9 @@ export async function listMyEnrollments(studentId: string) {
 }
 
 export async function practiceEligible(studentId: string) {
+  // 승인된 자격 레벨 2 이상이면 바로 참여 가능 (다른 곳에서 자격을 딴 다이버 포함)
+  const [u] = await db.select({ level: tables.users.licenseLevel }).from(tables.users).where(eq(tables.users.id, studentId));
+  if ((u?.level ?? 0) >= 2) return true;
   return canJoinPractice(await listMyEnrollments(studentId));
 }
 

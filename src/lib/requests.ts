@@ -30,6 +30,7 @@ function baseQuery() {
       course: c.name,
       studentName: u.name,
       studentPhone: u.phone,
+      studentLevel: u.licenseLevel,
       enrollmentInstructorId: e.instructorId,
       enrollmentPaid: e.paymentStatus,
     })
@@ -61,6 +62,7 @@ function shape(x: Row) {
     total: (x.r.fee ?? 0) + (x.r.rentalFee ?? 0),
     studentName: x.studentName,
     studentPhone: x.studentPhone,
+    studentLevel: x.studentLevel,
     enrollmentInstructorId: x.enrollmentInstructorId,
   };
 }

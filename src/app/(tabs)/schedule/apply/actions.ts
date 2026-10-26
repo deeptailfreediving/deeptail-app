@@ -90,8 +90,11 @@ export async function apply(_: ApplyState, formData: FormData): Promise<ApplySta
     if (!["SELF_PRACTICE", "REGULAR_TRAINING", "OVERSEAS_TOUR", "PAID_TRAINING"].includes(s.type)) {
       return { error: "이 일정은 참여 신청을 받지 않아요." };
     }
-    if ((s.type === "SELF_PRACTICE" || s.type === "REGULAR_TRAINING") && !(await practiceEligible(studentId))) {
-      return { error: "AIDA 2 · AIDA 3 수강생은 2회차 강습 이후부터 참여할 수 있어요." };
+    // 자율연습·정기트레이닝, 딥스테이션(레벨 2 이상만 입장)은 참여 자격 확인
+    const needsLevel2 =
+      s.type === "SELF_PRACTICE" || s.type === "REGULAR_TRAINING" || (s.type === "PAID_TRAINING" && s.location === "딥스테이션");
+    if (needsLevel2 && !(await practiceEligible(studentId))) {
+      return { error: "레벨 2 이상 자격(승인)이 있거나, AIDA 2 · AIDA 3 수강생은 2회차 강습 이후부터 참여할 수 있어요." };
     }
     const existing = await db
       .select({ id: tables.registrations.id })

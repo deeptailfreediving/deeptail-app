@@ -7,6 +7,11 @@ import { listMyEnrollments } from "@/lib/schedule";
 import { hm, longDate } from "@/lib/time";
 import LogoutButton from "./LogoutButton";
 import PushToggle from "@/components/PushToggle";
+import LevelBadge from "@/components/LevelBadge";
+import { eq } from "drizzle-orm";
+import { db, tables } from "@/db";
+import { latestLicenseRequest } from "@/lib/license";
+import LicenseForm from "./LicenseForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "마이페이지 | 딥테일 프리다이빙" };
@@ -16,17 +21,27 @@ const roleLabel = { STUDENT: "교육생", INSTRUCTOR: "강사", ADMIN: "대표" 
 export default async function MyPage() {
   // 미들웨어가 로그인을 보장함
   const session = (await getSession())!;
-  const [requests, enrollments] = await Promise.all([
+  const [requests, enrollments, [me], licenseReq] = await Promise.all([
     listMyRequests(session.user.id),
     listMyEnrollments(session.user.id),
+    db
+      .select({ level: tables.users.licenseLevel, agency: tables.users.licenseAgency })
+      .from(tables.users)
+      .where(eq(tables.users.id, session.user.id)),
+    latestLicenseRequest(session.user.id),
   ]);
+  const pending = licenseReq?.status === "PENDING" ? licenseReq : null;
+  const rejected = licenseReq?.status === "REJECTED" && licenseReq.note !== "새 요청으로 대체" ? licenseReq : null;
 
   return (
     <>
       <PageHeader title="마이페이지" />
       <section className="m-4 flex items-center justify-between rounded-2xl bg-white p-5 shadow-card">
         <div className="flex flex-col gap-1">
-          <span className="text-lg font-bold">{session.user.name}님</span>
+          <span className="text-lg font-bold">
+            {session.user.name}
+            <LevelBadge level={me?.level} />님
+          </span>
           <span className="text-sm text-ink-sub">
             {roleLabel[session.user.role]} · {session.user.email}
           </span>
@@ -35,6 +50,34 @@ export default async function MyPage() {
       </section>
 
       <PushToggle />
+
+      {/* 프리다이빙 자격 */}
+      <section className="mx-4 mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-card">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-base font-bold">프리다이빙 자격</span>
+          <span className="text-sm font-bold text-brand">
+            {me?.level ? `${me.agency ?? ""} 레벨 ${me.level}` : "미등록"}
+          </span>
+        </div>
+        {pending && (
+          <p className="rounded-xl bg-amber-50 p-3 text-xs font-medium text-amber-900">
+            {pending.agency} 레벨 {pending.level} 승인 요청을 확인하고 있어요.
+          </p>
+        )}
+        {rejected && (
+          <p className="rounded-xl bg-red-50 p-3 text-xs font-medium text-red-800">
+            {rejected.agency} 레벨 {rejected.level} 요청이 반려됐어요{rejected.note ? ` · ${rejected.note}` : ""}. 사진을 다시 올려 주세요.
+          </p>
+        )}
+        <details className="group">
+          <summary className="cursor-pointer list-none text-sm font-bold text-brand">
+            {me?.level ? "자격 변경 요청" : "자격증 등록하기"} <span className="group-open:hidden">▾</span>
+          </summary>
+          <div className="mt-3">
+            <LicenseForm />
+          </div>
+        </details>
+      </section>
 
       {session.user.role !== "STUDENT" && (
         <Link

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LockIcon } from "./icons";
+import LevelBadge from "./LevelBadge";
 
-type Me = { name: string; remaining: number } | null;
+type Me = { name: string; remaining: number; level: number | null } | null;
 
 // 같은 화면의 여러 조각이 한 번만 요청하도록 묶음
 let pending: Promise<Me> | null = null;
@@ -36,7 +37,8 @@ export function AccountButton() {
   if (me === undefined) return <span aria-hidden className="h-11 w-24 rounded-full bg-white/15" />;
   return me ? (
     <Link href="/my" className="flex min-h-11 animate-fade-in items-center rounded-full bg-white/15 px-4 text-sm font-bold">
-      {me.name}님
+      {me.name}
+      <LevelBadge level={me.level} className="bg-white text-brand-mid" />님
     </Link>
   ) : (
     <Link

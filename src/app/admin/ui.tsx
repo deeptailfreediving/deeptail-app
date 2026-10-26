@@ -1,4 +1,5 @@
 import StatusBadge from "@/components/StatusBadge";
+import LevelBadge from "@/components/LevelBadge";
 import type { AdminRequest } from "@/lib/requests";
 import { paymentLabel } from "@/lib/requests";
 import { won } from "@/lib/pricing";
@@ -44,7 +45,8 @@ export function RequestCard({ req, children }: { req: AdminRequest; children?: R
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
           <span className="text-[15px] font-bold">
-            {req.studentName}{" "}
+            {req.studentName}
+            <LevelBadge level={req.studentLevel} />{" "}
             <a href={`tel:${req.studentPhone}`} className="text-xs font-medium text-brand">
               {req.studentPhone}
             </a>
