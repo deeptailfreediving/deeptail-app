@@ -7,7 +7,7 @@
 import ICAL from "ical.js";
 import { and, asc, eq, gte, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import { db, tables } from "@/db";
-import { addDays, kst, todayYmd } from "./time";
+import { addDays, kst, SESSION_HOURS, todayYmd } from "./time";
 
 const { schedules, locations, registrations, appSettings, users } = tables;
 
@@ -57,7 +57,7 @@ export type Classified = {
   place: string | null;
   known: boolean; // 규칙에 딱 맞았는지 (아니면 관리자 화면 '확인 필요')
   capacity?: number | null; // 앱에서 신청할 수 있는 인원 (null = 제한 없음)
-  feeKind?: "DEEP_TRAINING"; // 참가비: 딥스 1:2 유료트레이닝 요금
+  feeKind?: "DEEP_TRAINING" | "POOL_TRAINING"; // 참가비: 1:2 유료트레이닝 요금 (딥스 / 5m 풀)
   note?: string;
 };
 
@@ -70,6 +70,7 @@ export type Classified = {
  *  3. '정트 + 장소'      → 정기트레이닝 (참여 신청)
  *  4. '투어'            → 해외투어 (참여 신청)
  *  5. '딥스' + 교육생 이름 → 딥스테이션 유료트레이닝 (이름 1명 → 2명, 2명 → 1명, 3명 이상 → 마감)
+ *     '트레이닝' + 교육생 이름 (딥스 외) → 그 장소 유료트레이닝 (정원 규칙 같음)
  *  6. 이름 + 과정·회차 + 장소 (예: 권보규 아이다2 2차 수원) → 교육생에겐 자율연습반 (참여 신청)
  *  7. 그 밖                → 이름 없이 '수업 예약됨' (신청 불가, 관리자 화면 '확인 필요')
  */
@@ -93,7 +94,18 @@ export function classify(summary: string): Classified | null {
       note: "강사와 함께하는 딥스테이션 트레이닝이에요. 신청 후 강사 확인을 거쳐 확정돼요.",
     };
   }
-  // 이론 수업은 물에 들어가지 않으니 자율연습반으로 열지 않음
+  if (/트레이닝|트레닝|1\s*:\s*[12]/.test(s) && names > 0) {
+    return {
+      type: "PAID_TRAINING",
+      title: `${place ?? ""} 유료트레이닝`.trim(),
+      place,
+      known: place !== null,
+      capacity: Math.max(0, DEEP_MAX - names),
+      feeKind: "POOL_TRAINING",
+      note: "강사와 함께하는 트레이닝이에요. 신청 후 강사 확인을 거쳐 확정돼요.",
+    };
+  }
+  // 체험·레벨1 포함 풀장 강습 시간은 자율연습반으로 공개 (이론 수업은 물에 들어가지 않으니 제외)
   if (names > 0 && CLASS_WORDS.test(s) && place && !/이론/.test(s)) {
     return {
       type: "SELF_PRACTICE",
@@ -108,7 +120,7 @@ export function classify(summary: string): Classified | null {
   return { type: "REGULAR_CLASS", title: "정규수업", place, known: false };
 }
 
-type Occurrence = { key: string; summary: string; startsAt: Date; endsAt: Date };
+type Occurrence = { key: string; summary: string; startsAt: Date; endsAt: Date; allDay: boolean };
 
 const ymdOf = (t: ICAL.Time) =>
   `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`;
@@ -143,7 +155,7 @@ export function expandIcs(text: string, from: Date, to: Date): Occurrence[] {
     let endsAt = toDate(end ?? start);
     if (endsAt <= startsAt) endsAt = new Date(startsAt.getTime() + (start.isDate ? 86_400_000 : 3_600_000));
     if (endsAt <= from || startsAt >= to) return;
-    out.push({ key: `${uid}|${startsAt.toISOString()}`, summary: item.summary ?? "", startsAt, endsAt });
+    out.push({ key: `${uid}|${startsAt.toISOString()}`, summary: item.summary ?? "", startsAt, endsAt, allDay: start.isDate });
   };
 
   for (const [uid, ve] of masters) {
@@ -230,20 +242,27 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
       .limit(1);
     if (!admin) throw new Error("관리자 계정이 없어요");
     const locIds = await locationIds(rows.map((x) => x.c.place).filter((p): p is string => !!p));
-    const [deep] = await db
-      .select({ price: tables.trainingOptions.price })
+    const prices = await db
+      .select({ code: tables.trainingOptions.code, price: tables.trainingOptions.price })
       .from(tables.trainingOptions)
-      .where(eq(tables.trainingOptions.code, "PT_1_2_DEEP"));
+      .where(inArray(tables.trainingOptions.code, ["PT_1_2_DEEP", "PT_1_2_5M"]));
+    const price = (code: string) => prices.find((p) => p.code === code)?.price ?? null;
+    // 풀장 교육 일정(장소가 있는 시간 일정)은 캘린더 길이와 상관없이 3시간으로 고정
+    const poolTypes: ScheduleType[] = ["SELF_PRACTICE", "PAID_TRAINING", "REGULAR_TRAINING", "REGULAR_CLASS"];
+    const endOf = (o: Occurrence, c: Classified) =>
+      !o.allDay && c.place && poolTypes.includes(c.type)
+        ? new Date(o.startsAt.getTime() + SESSION_HOURS * 3_600_000)
+        : o.endsAt;
 
     const values = rows.map(({ o, c }) => ({
       type: c.type,
       title: c.title,
       locationId: c.place ? (locIds.get(c.place) ?? null) : null,
       startsAt: o.startsAt,
-      endsAt: o.endsAt,
+      endsAt: endOf(o, c),
       minLevel: c.type === "REGULAR_TRAINING" || c.type === "SELF_PRACTICE" ? 2 : null,
       capacity: c.capacity ?? null,
-      fee: c.feeKind === "DEEP_TRAINING" ? (deep?.price ?? null) : null,
+      fee: c.feeKind === "DEEP_TRAINING" ? price("PT_1_2_DEEP") : c.feeKind === "POOL_TRAINING" ? price("PT_1_2_5M") : null,
       note: c.note ?? "",
       createdById: admin.id,
       contactName: admin.name,
