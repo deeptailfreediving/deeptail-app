@@ -334,6 +334,8 @@ export const reviews = pgTable("reviews", {
   title: text("title").notNull(),
   excerpt: text("excerpt"),
   category: reviewCategoryEnum("category").notNull().default("LESSON"),
+  /** 관리자가 분류를 직접 바꾸면 true → 자동 분류가 덮어쓰지 않음 */
+  categoryManual: boolean("category_manual").notNull().default(false),
   source: reviewSourceEnum("source").notNull().default("SEARCH"),
   hidden: boolean("hidden").notNull().default(false),
   pinned: boolean("pinned").notNull().default(false),

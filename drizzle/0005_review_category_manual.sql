@@ -1,0 +1,1 @@
+ALTER TABLE "reviews" ADD COLUMN "category_manual" boolean DEFAULT false NOT NULL;

@@ -20,7 +20,8 @@ const PAGES_PER_QUERY = 3; // 검색어당 최대 300건
 const SYNC_KEY = "reviews.lastSync";
 const AUTO_SYNC_HOURS = 6;
 
-const TOUR_WORDS = /투어|여행|해외|이시가키|보홀|세부|모알보알|다합|팡라오|발리|오키나와|사이판|괌|필리핀/;
+const TOUR_WORDS = /투어|이시가키|보홀|세부|모알보알|다합|팡라오|발리|오키나와|사이판|괌|필리핀|미야케지마|돌고래/;
+const LESSON_WORDS = /강습|체험|aida|아이다|레벨|자격증|취득|수업|과정|트레이닝/i;
 
 export type SyncResult = { at: string; ok: boolean; found: number; added: number; error?: string };
 
@@ -52,9 +53,16 @@ export function articleKeyOf(link: string, cafeurl?: string): string | null {
 }
 
 export const articleUrl = (key: string) => `${CAFE_URL}/${key}`;
-export const guessCategory = (text: string) => (TOUR_WORDS.test(text) ? "TOUR" : "LESSON") as "TOUR" | "LESSON";
+/** 제목을 먼저 보고, 제목으로 알 수 없을 때만 요약을 봄 */
+export function guessCategory(title: string, excerpt = ""): "TOUR" | "LESSON" {
+  if (TOUR_WORDS.test(title)) return "TOUR";
+  if (LESSON_WORDS.test(title)) return "LESSON";
+  return TOUR_WORDS.test(excerpt) && !LESSON_WORDS.test(excerpt) ? "TOUR" : "LESSON";
+}
 
-async function searchPage(query: string, start: number): Promise<Item[]> {
+// fresh=true: 관리자 버튼·예약 작업 (항상 새로 요청)
+// fresh=false: 미리 만들어 두는 화면을 만들 때 (Next.js 캐시 규칙상 10분 캐시 허용)
+async function searchPage(query: string, start: number, fresh: boolean): Promise<Item[]> {
   const params = new URLSearchParams({ query, display: "100", start: String(start), sort: "date" });
   let url: string;
   let headers: Record<string, string>;
@@ -74,7 +82,7 @@ async function searchPage(query: string, start: number): Promise<Item[]> {
   }
   const res = await fetch(process.env.NAVER_SEARCH_URL_OVERRIDE ? `${process.env.NAVER_SEARCH_URL_OVERRIDE}?${params}` : url, {
     headers,
-    cache: "no-store",
+    ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 600 } }),
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
@@ -86,7 +94,7 @@ async function searchPage(query: string, start: number): Promise<Item[]> {
 }
 
 /** 네이버 카페에서 후기글을 찾아 새 글만 추가 (이미 있는 글은 제목·요약만 갱신) */
-export async function syncReviews(): Promise<SyncResult> {
+export async function syncReviews({ fresh = true }: { fresh?: boolean } = {}): Promise<SyncResult> {
   const at = new Date().toISOString();
   let result: SyncResult;
   try {
@@ -94,7 +102,7 @@ export async function syncReviews(): Promise<SyncResult> {
     const found = new Map<string, { title: string; excerpt: string }>();
     for (const q of QUERIES) {
       for (let p = 0; p < PAGES_PER_QUERY; p++) {
-        const items = await searchPage(q, 1 + p * 100);
+        const items = await searchPage(q, 1 + p * 100, fresh);
         for (const it of items) {
           const key = articleKeyOf(it.link, it.cafeurl);
           if (!key) continue;
@@ -125,18 +133,23 @@ export async function syncReviews(): Promise<SyncResult> {
               url: articleUrl(k),
               title: f.title,
               excerpt: f.excerpt,
-              category: guessCategory(f.title + " " + f.excerpt),
+              category: guessCategory(f.title, f.excerpt),
             };
           }),
         ).onConflictDoNothing();
         added = fresh.length;
       }
       // 검색으로 들어온 글은 제목이 바뀌었을 수 있어 갱신 (직접 추가한 글은 그대로)
+      // 분류는 관리자가 직접 바꾼 적이 없을 때만 다시 자동 분류
       for (const k of keys.filter((k) => have.get(k) === "SEARCH")) {
         const f = found.get(k)!;
         await db
           .update(reviews)
-          .set({ title: f.title, excerpt: f.excerpt })
+          .set({
+            title: f.title,
+            excerpt: f.excerpt,
+            category: sql`case when ${reviews.categoryManual} then ${reviews.category} else ${guessCategory(f.title, f.excerpt)}::review_category end`,
+          })
           .where(and(eq(reviews.articleKey, k), eq(reviews.source, "SEARCH")));
       }
     }
@@ -161,7 +174,7 @@ export async function syncIfStale() {
   if (!reviewsEnabled()) return;
   const last = await lastSync();
   if (last && Date.now() - new Date(last.at).getTime() < AUTO_SYNC_HOURS * 3_600_000) return;
-  await syncReviews();
+  await syncReviews({ fresh: false });
 }
 
 // 글 번호가 클수록 최근 글 → 최신순 정렬에 사용

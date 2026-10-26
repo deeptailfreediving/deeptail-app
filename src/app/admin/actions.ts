@@ -355,7 +355,10 @@ export async function toggleReviewCategory(id: string) {
   await requireStaff();
   await db
     .update(tables.reviews)
-    .set({ category: sql`case when ${tables.reviews.category} = 'TOUR' then 'LESSON'::review_category else 'TOUR'::review_category end` })
+    .set({
+      category: sql`case when ${tables.reviews.category} = 'TOUR' then 'LESSON'::review_category else 'TOUR'::review_category end`,
+      categoryManual: true,
+    })
     .where(eq(tables.reviews.id, id));
   done("분류를 바꿨어요.", "/admin/reviews");
 }
@@ -377,12 +380,13 @@ export async function addReviewManually(formData: FormData) {
       url: articleUrl(key),
       title,
       excerpt: excerpt || null,
-      category: category ?? guessCategory(`${title} ${excerpt}`),
+      category: category ?? guessCategory(title, excerpt),
+      categoryManual: Boolean(category),
       source: "MANUAL",
     })
     .onConflictDoUpdate({
       target: tables.reviews.articleKey,
-      set: { title, excerpt: excerpt || null, source: "MANUAL", hidden: false, ...(category ? { category } : {}) },
+      set: { title, excerpt: excerpt || null, source: "MANUAL", hidden: false, ...(category ? { category, categoryManual: true } : {}) },
     });
   done("후기를 추가했어요.", "/admin/reviews");
 }
