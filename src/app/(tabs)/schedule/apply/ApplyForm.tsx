@@ -32,6 +32,7 @@ type Variant =
       trainings: { id: string; name: string; price: number }[];
     };
 
+type PayMethod = "BANK_TRANSFER" | "ONSITE_CARD" | "NAVER_BOOKING";
 type Bank = { bank: string; number: string; holder: string };
 
 const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
@@ -46,11 +47,14 @@ export default function ApplyForm({
   variant,
   rentalItems,
   bank,
+  naverBookingUrl,
 }: {
   variant: Variant;
   rentalItems: RentalItem[];
   bank: Bank;
+  naverBookingUrl?: string | null;
 }) {
+  const [payMethod, setPayMethod] = useState<PayMethod>("BANK_TRANSFER");
   const [state, action] = useFormState<ApplyState, FormData>(apply, {});
 
   // 신청 내용
@@ -290,23 +294,75 @@ export default function ApplyForm({
             <Row label="장비대여료" value={won(rental)} />
             {onSite.length > 0 && <Row label="현장결제" value={onSite.map((i) => i.name).join(", ")} muted />}
             <div className="mt-1 flex items-center justify-between border-t border-line pt-3">
-              <dt className="font-bold">입금하실 금액</dt>
+              <dt className="font-bold">결제하실 금액</dt>
               <dd className="text-xl font-extrabold text-brand-mid">{won(total)}</dd>
             </div>
           </dl>
           {total > 0 ? (
-            <div className="flex flex-col gap-2 rounded-xl bg-canvas p-3 text-sm">
-              <p className="font-bold">결제 안내 · 계좌이체</p>
-              <p>
-                {bank.bank} <b>{bank.number}</b>
-                <br />
-                예금주 {bank.holder}
-              </p>
-              <CopyButton text={bank.number} />
-              <p className="text-xs text-ink-mute">신청 후 입금해 주세요. 입금이 확인되면 &lsquo;결제완료&rsquo;로 바뀌어요.</p>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-bold">결제 방법</p>
+              <input type="hidden" name="paymentMethod" value={payMethod} />
+              <div role="radiogroup" aria-label="결제 방법" className="grid grid-cols-1 gap-2">
+                {(
+                  [
+                    { v: "BANK_TRANSFER" as PayMethod, label: "계좌이체", sub: "신청 후 계좌로 입금" },
+                    { v: "ONSITE_CARD" as PayMethod, label: "현장 카드결제", sub: "수업 당일 강사에게 카드로 결제" },
+                    ...(naverBookingUrl
+                      ? [{ v: "NAVER_BOOKING" as PayMethod, label: "네이버 예약 · 카드/네이버페이", sub: "네이버 예약 페이지에서 결제" }]
+                      : []),
+                  ]
+                ).map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    role="radio"
+                    aria-checked={payMethod === o.v}
+                    onClick={() => setPayMethod(o.v)}
+                    className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left ${
+                      payMethod === o.v ? "border-brand bg-brand-tint" : "border-line bg-white"
+                    }`}
+                  >
+                    <span className="text-sm font-bold">{o.label}</span>
+                    <span className="text-xs text-ink-sub">{o.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {payMethod === "BANK_TRANSFER" && (
+                <div className="flex flex-col gap-2 rounded-xl bg-canvas p-3 text-sm">
+                  <p>
+                    {bank.bank} <b>{bank.number}</b>
+                    <br />
+                    예금주 {bank.holder}
+                  </p>
+                  <CopyButton text={bank.number} />
+                  <p className="text-xs text-ink-mute">신청 후 입금해 주세요. 입금이 확인되면 &lsquo;결제완료&rsquo;로 바뀌어요.</p>
+                </div>
+              )}
+              {payMethod === "ONSITE_CARD" && (
+                <p className="rounded-xl bg-canvas p-3 text-xs text-ink-sub">
+                  수업 당일 강사에게 카드로 결제해 주세요. 결제가 끝나면 &lsquo;결제완료&rsquo;로 바뀌어요.
+                </p>
+              )}
+              {payMethod === "NAVER_BOOKING" && naverBookingUrl && (
+                <div className="flex flex-col gap-2 rounded-xl bg-canvas p-3 text-xs text-ink-sub">
+                  <p>
+                    먼저 이 앱에서 신청을 마친 뒤, 네이버 예약에서 <b>같은 날짜·같은 금액</b>으로 결제해 주세요. 예약자 이름은 앱
+                    가입 이름과 같게 적어 주세요.
+                  </p>
+                  <a
+                    href={naverBookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-10 items-center justify-center rounded-lg bg-[#03C75A] text-sm font-bold text-white"
+                  >
+                    네이버 예약 페이지 열기 ↗
+                  </a>
+                </div>
+              )}
             </div>
           ) : (
-            <p className="text-xs text-ink-mute">입금하실 금액이 없어요.</p>
+            <p className="text-xs text-ink-mute">결제하실 금액이 없어요.</p>
           )}
         </Card>
       )}

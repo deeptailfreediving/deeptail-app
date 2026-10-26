@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, tables } from "@/db";
 import { getRequest } from "@/lib/requests";
+import { notifyRegistration } from "@/lib/notify";
 import { requireAdmin, requireStaff } from "@/lib/staff";
 import { kst } from "@/lib/time";
 
@@ -43,6 +44,7 @@ export async function approveRequest(id: string) {
       await tx.update(e).set({ instructorId: session.user.id }).where(eq(e.id, req.enrollmentId));
     }
   });
+  await notifyRegistration(id, "APPROVED").catch(() => undefined);
   done(`${req.studentName}님 신청을 확정했어요.`);
 }
 
@@ -51,6 +53,7 @@ export async function rejectRequest(id: string) {
   const req = await getRequest(id);
   if (!req || !["PENDING", "APPROVED"].includes(req.status)) done("이미 처리된 신청이에요.");
   await db.update(r).set({ status: "REJECTED" }).where(eq(r.id, id));
+  await notifyRegistration(id, "REJECTED").catch(() => undefined);
   done(`${req.studentName}님 신청을 반려했어요.`);
 }
 
@@ -59,6 +62,7 @@ export async function cancelRequest(id: string) {
   const req = await getRequest(id);
   if (!req || req.status !== "APPROVED") done("확정된 신청만 취소할 수 있어요.");
   await db.update(r).set({ status: "CANCELLED" }).where(eq(r.id, id));
+  await notifyRegistration(id, "CANCELLED").catch(() => undefined);
   done(`${req.studentName}님 일정을 취소했어요.`);
 }
 
@@ -73,7 +77,8 @@ export async function markPaid(id: string) {
       await tx.update(e).set({ paymentStatus: "PAID" }).where(eq(e.id, req.enrollmentId));
     }
   });
-  done(`${req.studentName}님 입금을 확인했어요.`);
+  await notifyRegistration(id, "PAID").catch(() => undefined);
+  done(`${req.studentName}님 결제를 확인했어요.`);
 }
 
 export async function completeRequest(id: string) {
@@ -446,4 +451,24 @@ export async function clearReviewImage(id: string) {
   await requireStaff();
   await db.update(tables.reviews).set({ imageUrl: null, imageChecked: true }).where(eq(tables.reviews.id, id));
   done("미리보기 사진을 뺐어요.", "/admin/reviews");
+}
+
+// ─────────────── 결제 · 알림 설정 ───────────────
+
+export async function saveNaverBookingUrl(formData: FormData) {
+  await requireAdmin();
+  const url = String(formData.get("url") ?? "").trim();
+  if (url && !/^https:\/\/(m\.)?(booking\.naver\.com|naver\.me|map\.naver\.com|pcmap\.place\.naver\.com|m\.place\.naver\.com|place\.naver\.com)\//.test(url)) {
+    done("네이버 예약(또는 네이버 플레이스) 주소를 붙여넣어 주세요.", "/admin/settings");
+  }
+  const { setSetting } = await import("@/lib/settings");
+  await setSetting("naver_booking_url", url);
+  done(url ? "네이버 예약 결제를 켰어요. 신청 화면에 결제 방법으로 나와요." : "네이버 예약 결제를 껐어요.", "/admin/settings");
+}
+
+export async function sendTestNotification(formData: FormData) {
+  await requireAdmin();
+  const { sendTestMessage } = await import("@/lib/notify");
+  const msg = await sendTestMessage(String(formData.get("phone") ?? ""), String(formData.get("email") ?? ""));
+  done(msg, "/admin/settings");
 }

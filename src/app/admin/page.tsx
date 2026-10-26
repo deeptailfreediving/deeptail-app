@@ -78,17 +78,17 @@ export default async function AdminHome({ searchParams }: { searchParams: { msg?
         )}
       </Section>
 
-      <Section title="입금 확인" count={unpaid.length}>
+      <Section title="결제 확인" count={unpaid.length}>
         {unpaid.length === 0 ? (
-          <Empty>입금을 기다리는 신청이 없어요.</Empty>
+          <Empty>결제를 기다리는 신청이 없어요.</Empty>
         ) : (
           <ul className="flex flex-col gap-2">
             {unpaid.map((req) => (
               <RequestCard key={req.id} req={req}>
                 {isAdmin ? (
-                  <ActionButton action={markPaid.bind(null, req.id)}>입금 확인</ActionButton>
+                  <ActionButton action={markPaid.bind(null, req.id)}>결제 확인</ActionButton>
                 ) : (
-                  <span className="text-xs text-ink-mute">입금 확인은 대표만 할 수 있어요.</span>
+                  <span className="text-xs text-ink-mute">결제 확인은 대표만 할 수 있어요.</span>
                 )}
               </RequestCard>
             ))}

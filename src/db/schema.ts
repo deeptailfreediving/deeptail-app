@@ -219,6 +219,9 @@ export const registrationStatusEnum = pgEnum("registration_status", [
   "COMPLETED", // 수업 완료 (정규수업이면 횟수 차감)
 ]);
 
+// 결제 방법: 계좌이체 · 현장 카드결제 · 네이버 예약(네이버페이·카드)
+export const paymentMethodEnum = pgEnum("payment_method", ["BANK_TRANSFER", "ONSITE_CARD", "NAVER_BOOKING"]);
+
 export const registrations = pgTable(
   "registrations",
   {
@@ -238,6 +241,7 @@ export const registrations = pgTable(
     fee: integer("fee"),
     paymentStatus: paymentStatusEnum("payment_status").notNull().default("UNPAID"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    paymentMethod: paymentMethodEnum("payment_method"),
 
     // 유료트레이닝이면 선택한 옵션 (1:1/1:2 · 5m/딥스)
     trainingOptionId: text("training_option_id").references(() => trainingOptions.id),

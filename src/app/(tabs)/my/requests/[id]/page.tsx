@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
 import { getSession } from "@/lib/auth";
 import { bankAccount } from "@/lib/business";
+import { getSetting } from "@/lib/settings";
 import { won } from "@/lib/pricing";
 import { getMyRequest, paymentLabel } from "@/lib/requests";
 import { hm, longDate } from "@/lib/time";
@@ -14,6 +15,7 @@ export const metadata = { title: "신청 내역 | 딥테일 프리다이빙" };
 export default async function RequestDetail({ params }: { params: { id: string } }) {
   const session = (await getSession())!;
   const req = await getMyRequest(params.id, session.user.id);
+  const naverUrl = await getSetting("naver_booking_url");
   if (!req) notFound();
 
   const rentals = [
@@ -75,15 +77,28 @@ export default async function RequestDetail({ params }: { params: { id: string }
               <b>{won(req.rentalFee ?? 0)}</b>
             </div>
             <div className="flex items-center justify-between border-t border-line pt-2">
-              <span className="font-bold">입금하실 금액</span>
+              <span className="font-bold">결제하실 금액</span>
               <span className="text-xl font-extrabold text-brand-mid">{won(req.total)}</span>
             </div>
-            {req.paymentStatus === "UNPAID" && (
+            {req.paymentStatus === "UNPAID" && (req.paymentMethod ?? "BANK_TRANSFER") === "BANK_TRANSFER" && (
               <p className="rounded-xl bg-canvas p-3">
-                {bankAccount.bank} <b>{bankAccount.number}</b>
+                계좌이체 · {bankAccount.bank} <b>{bankAccount.number}</b>
                 <br />
                 예금주 {bankAccount.holder}
               </p>
+            )}
+            {req.paymentStatus === "UNPAID" && req.paymentMethod === "ONSITE_CARD" && (
+              <p className="rounded-xl bg-canvas p-3">현장 카드결제 · 수업 당일 강사에게 카드로 결제해 주세요.</p>
+            )}
+            {req.paymentStatus === "UNPAID" && req.paymentMethod === "NAVER_BOOKING" && (
+              <div className="flex flex-col gap-2 rounded-xl bg-canvas p-3">
+                <p>네이버 예약에서 같은 날짜·금액으로 결제해 주세요. 예약자 이름은 가입 이름과 같게 적어 주세요.</p>
+                {naverUrl && (
+                  <a href={naverUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-10 items-center justify-center rounded-lg bg-[#03C75A] text-sm font-bold text-white">
+                    네이버 예약 페이지 열기 ↗
+                  </a>
+                )}
+              </div>
             )}
           </section>
         )}

@@ -1,6 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db, tables } from "@/db";
+import { getSetting } from "@/lib/settings";
 import PageHeader from "@/components/PageHeader";
 import { getSession } from "@/lib/auth";
 import { bankAccount } from "@/lib/business";
@@ -19,6 +20,7 @@ export default async function ApplyPage({
 }) {
   // 미들웨어가 로그인을 보장함
   const session = (await getSession())!;
+  const naverBookingUrl = await getSetting("naver_booking_url");
   const [rentals, courses, trainings, locations, enrollments] = await Promise.all([
     listRentalItems(),
     listCourses(),
@@ -53,6 +55,7 @@ export default async function ApplyPage({
           }}
           rentalItems={rentalItems}
           bank={bankAccount}
+          naverBookingUrl={naverBookingUrl}
         />
       </>
     );
@@ -86,6 +89,7 @@ export default async function ApplyPage({
         }}
         rentalItems={rentalItems}
         bank={bankAccount}
+        naverBookingUrl={naverBookingUrl}
       />
     </>
   );

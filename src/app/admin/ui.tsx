@@ -1,7 +1,7 @@
 import StatusBadge from "@/components/StatusBadge";
 import LevelBadge from "@/components/LevelBadge";
 import type { AdminRequest } from "@/lib/requests";
-import { paymentLabel } from "@/lib/requests";
+import { paymentLabel, paymentMethodLabel } from "@/lib/requests";
 import { won } from "@/lib/pricing";
 import { hm, longDate } from "@/lib/time";
 
@@ -70,6 +70,7 @@ export function RequestCard({ req, children }: { req: AdminRequest; children?: R
       <p className="text-xs text-ink-mute">
         {req.total > 0 ? `${won(req.total)} · ` : ""}
         {paymentLabel[req.paymentStatus]}
+        {req.paymentMethod && req.paymentStatus !== "NOT_REQUIRED" ? ` · ${paymentMethodLabel[req.paymentMethod]}` : ""}
       </p>
       {children && <div className="flex flex-wrap gap-2 pt-1">{children}</div>}
     </li>

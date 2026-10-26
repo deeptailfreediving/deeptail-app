@@ -14,7 +14,12 @@ export const statusLabel = {
   COMPLETED: "수업 완료",
 } as const;
 
-export const paymentLabel = { NOT_REQUIRED: "결제 없음", UNPAID: "입금 대기", PAID: "결제완료" } as const;
+export const paymentLabel = { NOT_REQUIRED: "결제 없음", UNPAID: "결제 대기", PAID: "결제완료" } as const;
+export const paymentMethodLabel = {
+  BANK_TRANSFER: "계좌이체",
+  ONSITE_CARD: "현장 카드결제",
+  NAVER_BOOKING: "네이버 예약 결제",
+} as const;
 
 function baseQuery() {
   return db
@@ -30,6 +35,7 @@ function baseQuery() {
       course: c.name,
       studentName: u.name,
       studentPhone: u.phone,
+      studentEmail: u.email,
       studentLevel: u.licenseLevel,
       enrollmentInstructorId: e.instructorId,
       enrollmentPaid: e.paymentStatus,
@@ -62,6 +68,7 @@ function shape(x: Row) {
     total: (x.r.fee ?? 0) + (x.r.rentalFee ?? 0),
     studentName: x.studentName,
     studentPhone: x.studentPhone,
+    studentEmail: x.studentEmail,
     studentLevel: x.studentLevel,
     enrollmentInstructorId: x.enrollmentInstructorId,
   };

@@ -57,6 +57,13 @@
       "when": 1793009430102,
       "tag": "0007_license_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793012986193,
+      "tag": "0008_payment_method",
+      "breakpoints": true
     }
   ]
 }

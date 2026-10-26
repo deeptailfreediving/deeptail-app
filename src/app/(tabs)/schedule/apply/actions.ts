@@ -3,6 +3,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { notifyRegistration } from "@/lib/notify";
 import { z } from "zod";
 import { db, tables } from "@/db";
 import { getSession } from "@/lib/auth";
@@ -28,6 +29,7 @@ const base = z.object({
   finSize: optionalText,
   weightKg: z.coerce.number().int().min(10).max(200).optional().or(z.literal("").transform(() => undefined)),
   memo: optionalText,
+  paymentMethod: z.enum(["BANK_TRANSFER", "ONSITE_CARD", "NAVER_BOOKING"]).optional(),
 });
 
 const joinSchema = base.extend({ mode: z.literal("join"), scheduleId: z.string().min(1) });
@@ -238,6 +240,15 @@ export async function apply(_: ApplyState, formData: FormData): Promise<ApplySta
       }
     }
   }
+
+  // 결제할 금액이 있으면 고른 결제 방법 저장
+  await db
+    .update(tables.registrations)
+    .set({ paymentMethod: v.paymentMethod ?? "BANK_TRANSFER" })
+    .where(and(eq(tables.registrations.id, newId), eq(tables.registrations.paymentStatus, "UNPAID")));
+
+  // 교육생 · 관리자에게 신청 알림 (문자·알림톡·이메일 — 설정된 것만)
+  await notifyRegistration(newId, "RECEIVED").catch((e) => console.error("notify failed", e));
 
   revalidatePath("/", "layout"); // 일정 화면 '예약됨'·참여 인원 바로 반영
   redirect(`/my/requests/${newId}`);
