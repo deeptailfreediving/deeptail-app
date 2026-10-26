@@ -88,7 +88,7 @@ export default async function AdminSchedules({ searchParams }: { searchParams: {
                     {x.externalTitle && <span className="ml-1.5 rounded bg-brand-tint px-1.5 py-0.5 text-[10px] text-brand-mid">캘린더</span>}
                   </span>
                   <span className="text-xs text-ink-sub">
-                    {longDate(x.startsAt)} {hm(x.startsAt)}~{hm(x.endsAt)} · {x.location ?? "장소 미정"}
+                    {longDate(x.startsAt)} {x.type === "CLOSURE" ? "종일" : `${hm(x.startsAt)}~${hm(x.endsAt)}`} · {x.location ?? "장소 미정"}
                   </span>
                   <span className="text-xs text-ink-mute">
                     신청 {x.joined}

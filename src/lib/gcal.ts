@@ -53,7 +53,8 @@ export function classify(summary: string): Classified | null {
   if (/투어/.test(s)) return { type: "OVERSEAS_TOUR", title: s, place, known: true };
   if (/트레이닝|트레닝|1\s*:\s*[12]/.test(s)) return { type: "PAID_TRAINING", title: "유료트레이닝", place, known: true };
   // 그 밖의 일정은 모두 '강사가 바쁜 시간'으로 보고 이름 없이 '수업 예약됨'
-  return { type: "REGULAR_CLASS", title: "정규수업", place, known: CLASS_WORDS.test(s) };
+  // '이름 + 장소'(예: 김주윤 딥스)도 수업으로 봄
+  return { type: "REGULAR_CLASS", title: "정규수업", place, known: CLASS_WORDS.test(s) || place !== null };
 }
 
 type Occurrence = { key: string; summary: string; startsAt: Date; endsAt: Date };
