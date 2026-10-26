@@ -5,7 +5,16 @@
 //
 // 필요 환경변수: GOOGLE_CALENDAR_ICS_URL
 import ICAL from "ical.js";
-import { and, asc, eq, gte, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { db, tables } from "@/db";
 import { addDays, kst, SESSION_HOURS, todayYmd } from "./time";
 
@@ -32,26 +41,62 @@ const PLACES: { re: RegExp; name: string }[] = [
   { re: /대전/, name: "대전" },
 ];
 
-const CLASS_WORDS = /체험|아이다|aida|레벨|\d\s*차|이론|반\b|반$|수업|강습|교육/i;
+const CLASS_WORDS =
+  /체험|아이다|aida|레벨|\d\s*차|이론|반\b|반$|수업|강습|교육/i;
 
 // 이름이 아닌 낱말 (이름 세기에서 뺌)
 const NOT_NAMES = new Set([
-  "체험", "이론", "정트", "트레이닝", "레벨", "아이다", "에이다", "수원", "성남", "딥스", "대전", "올팍", "오산",
-  "파라", "잠실", "예약", "안함", "예약안함", "현장", "카드", "결제", "카드결제", "취소", "취소됨", "휴관", "투어",
-  "교육", "수업", "강습", "정규", "보강", "주니어", "키즈", "자율", "연습", "개인", "그룹",
+  "체험",
+  "이론",
+  "정트",
+  "트레이닝",
+  "레벨",
+  "아이다",
+  "에이다",
+  "수원",
+  "성남",
+  "딥스",
+  "대전",
+  "올팍",
+  "오산",
+  "파라",
+  "잠실",
+  "예약",
+  "안함",
+  "예약안함",
+  "현장",
+  "카드",
+  "결제",
+  "카드결제",
+  "취소",
+  "취소됨",
+  "휴관",
+  "투어",
+  "교육",
+  "수업",
+  "강습",
+  "정규",
+  "보강",
+  "주니어",
+  "키즈",
+  "자율",
+  "연습",
+  "개인",
+  "그룹",
 ]);
 
 /** 일정 이름 속 교육생 이름 수 (한글 2~4글자 낱말, 과정·장소·회차 낱말 제외) */
 export function countNames(summary: string) {
   return summary
     .split(/[\s,·/()]+/)
-    .filter((t) => /^[가-힣]{2,4}$/.test(t) && !NOT_NAMES.has(t) && !/(반|차|풀)$/.test(t)).length;
+    .filter(
+      (t) =>
+        /^[가-힣]{2,4}$/.test(t) && !NOT_NAMES.has(t) && !/(반|차|풀)$/.test(t),
+    ).length;
 }
 
 // 딥스테이션: 한 타임 최대 3명 (캘린더에 적힌 교육생 + 앱에서 신청하는 사람)
 const DEEP_MAX = 3;
-// 딥스테이션 (교육 참여 시) 유료트레이닝 요금 — 안내문 기준, 입장료 별도
-const DEEP_WITH_CLASS_FEE = 50_000;
 
 export type Classified = {
   type: ScheduleType;
@@ -59,7 +104,7 @@ export type Classified = {
   place: string | null;
   known: boolean; // 규칙에 딱 맞았는지 (아니면 관리자 화면 '확인 필요')
   capacity?: number | null; // 앱에서 신청할 수 있는 인원 (null = 제한 없음)
-  feeKind?: "DEEP_TRAINING" | "DEEP_WITH_CLASS" | "POOL_TRAINING"; // 참가비 (안내문 유료트레이닝 표 기준)
+  feeKind?: "DEEP_TRAINING" | "POOL_TRAINING"; // 참가비 (안내문 유료트레이닝 표 기준)
   note?: string;
 };
 
@@ -82,9 +127,22 @@ export function classify(summary: string): Classified | null {
   const place = PLACES.find((p) => p.re.test(s))?.name ?? null;
   const names = countNames(s);
 
-  if (/휴관|휴장/.test(s)) return { type: "CLOSURE", title: `${place ?? s.replace(/\s*휴관|\s*휴장/, "")} 휴관`, place, known: true };
-  if (/정트|정기\s*트레이닝/.test(s)) return { type: "REGULAR_TRAINING", title: "정기트레이닝", place, known: true };
-  if (/투어/.test(s)) return { type: "OVERSEAS_TOUR", title: s, place, known: true };
+  if (/휴관|휴장/.test(s))
+    return {
+      type: "CLOSURE",
+      title: `${place ?? s.replace(/\s*휴관|\s*휴장/, "")} 휴관`,
+      place,
+      known: true,
+    };
+  if (/정트|정기\s*트레이닝/.test(s))
+    return {
+      type: "REGULAR_TRAINING",
+      title: "정기트레이닝",
+      place,
+      known: true,
+    };
+  if (/투어/.test(s))
+    return { type: "OVERSEAS_TOUR", title: s, place, known: true };
   if (place === "딥스테이션" && names > 0) {
     return {
       type: "PAID_TRAINING",
@@ -92,8 +150,7 @@ export function classify(summary: string): Classified | null {
       place,
       known: true,
       capacity: Math.max(0, DEEP_MAX - names),
-      // 강습 중인 일정에 함께 들어가면 '딥스테이션 (교육 참여 시)' 요금
-      feeKind: CLASS_WORDS.test(s) ? "DEEP_WITH_CLASS" : "DEEP_TRAINING",
+      feeKind: "DEEP_TRAINING",
       note: "강사와 함께하는 딥스테이션 트레이닝이에요. 신청 후 강사 확인을 거쳐 확정돼요.",
     };
   }
@@ -123,7 +180,13 @@ export function classify(summary: string): Classified | null {
   return { type: "REGULAR_CLASS", title: "정규수업", place, known: false };
 }
 
-type Occurrence = { key: string; summary: string; startsAt: Date; endsAt: Date; allDay: boolean };
+type Occurrence = {
+  key: string;
+  summary: string;
+  startsAt: Date;
+  endsAt: Date;
+  allDay: boolean;
+};
 
 const ymdOf = (t: ICAL.Time) =>
   `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`;
@@ -152,13 +215,32 @@ export function expandIcs(text: string, from: Date, to: Date): Occurrence[] {
   }
 
   const out: Occurrence[] = [];
-  const push = (uid: string, item: ICAL.Event, start: ICAL.Time, end: ICAL.Time) => {
-    if (String(item.component.getFirstPropertyValue("status") ?? "").toUpperCase() === "CANCELLED") return;
+  const push = (
+    uid: string,
+    item: ICAL.Event,
+    start: ICAL.Time,
+    end: ICAL.Time,
+  ) => {
+    if (
+      String(
+        item.component.getFirstPropertyValue("status") ?? "",
+      ).toUpperCase() === "CANCELLED"
+    )
+      return;
     const startsAt = toDate(start);
     let endsAt = toDate(end ?? start);
-    if (endsAt <= startsAt) endsAt = new Date(startsAt.getTime() + (start.isDate ? 86_400_000 : 3_600_000));
+    if (endsAt <= startsAt)
+      endsAt = new Date(
+        startsAt.getTime() + (start.isDate ? 86_400_000 : 3_600_000),
+      );
     if (endsAt <= from || startsAt >= to) return;
-    out.push({ key: `${uid}|${startsAt.toISOString()}`, summary: item.summary ?? "", startsAt, endsAt, allDay: start.isDate });
+    out.push({
+      key: `${uid}|${startsAt.toISOString()}`,
+      summary: item.summary ?? "",
+      startsAt,
+      endsAt,
+      allDay: start.isDate,
+    });
   };
 
   for (const [uid, ve] of masters) {
@@ -170,7 +252,11 @@ export function expandIcs(text: string, from: Date, to: Date): Occurrence[] {
     }
     const it = ev.iterator();
     let guard = 0;
-    for (let next = it.next(); next && guard < 5000; next = it.next(), guard++) {
+    for (
+      let next = it.next();
+      next && guard < 5000;
+      next = it.next(), guard++
+    ) {
       if (toDate(next) >= to) break;
       const d = ev.getOccurrenceDetails(next);
       push(uid, d.item, d.startDate, d.endDate);
@@ -199,7 +285,10 @@ export type GcalSyncResult = {
 async function locationIds(names: string[]) {
   const need = [...new Set(names)];
   if (!need.length) return new Map<string, string>();
-  const found = await db.select().from(locations).where(inArray(locations.name, need));
+  const found = await db
+    .select()
+    .from(locations)
+    .where(inArray(locations.name, need));
   const missing = need.filter((n) => !found.some((f) => f.name === n));
   if (missing.length) {
     const added = await db
@@ -213,19 +302,27 @@ async function locationIds(names: string[]) {
 }
 
 /** 캘린더를 읽어서 앱 일정에 반영 */
-export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): Promise<GcalSyncResult> {
+export async function syncCalendar({
+  fresh = true,
+}: { fresh?: boolean } = {}): Promise<GcalSyncResult> {
   const at = new Date().toISOString();
   let result: GcalSyncResult;
   try {
     const url = process.env.GOOGLE_CALENDAR_ICS_URL;
     if (!url) throw new Error("GOOGLE_CALENDAR_ICS_URL 환경변수가 없어요");
     const res = await fetch(url, {
-      ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 300 } }),
+      ...(fresh
+        ? { cache: "no-store" as const }
+        : { next: { revalidate: 300 } }),
       signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) throw new Error(`캘린더 주소 응답 ${res.status} (비공개 주소가 맞는지 확인해 주세요)`);
+    if (!res.ok)
+      throw new Error(
+        `캘린더 주소 응답 ${res.status} (비공개 주소가 맞는지 확인해 주세요)`,
+      );
     const text = await res.text();
-    if (!text.includes("BEGIN:VCALENDAR")) throw new Error("캘린더 주소가 iCal 형식이 아니에요");
+    if (!text.includes("BEGIN:VCALENDAR"))
+      throw new Error("캘린더 주소가 iCal 형식이 아니에요");
 
     const today = todayYmd();
     const from = kst(addDays(today, -PAST_DAYS));
@@ -235,7 +332,9 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
     const rows = occ
       .map((o) => ({ o, c: classify(o.summary) }))
       .filter((x): x is { o: Occurrence; c: Classified } => x.c !== null);
-    const unknown = [...new Set(rows.filter((x) => !x.c.known).map((x) => x.o.summary.trim()))];
+    const unknown = [
+      ...new Set(rows.filter((x) => !x.c.known).map((x) => x.o.summary.trim())),
+    ];
 
     const [admin] = await db
       .select()
@@ -244,14 +343,27 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
       .orderBy(asc(users.createdAt))
       .limit(1);
     if (!admin) throw new Error("관리자 계정이 없어요");
-    const locIds = await locationIds(rows.map((x) => x.c.place).filter((p): p is string => !!p));
+    const locIds = await locationIds(
+      rows.map((x) => x.c.place).filter((p): p is string => !!p),
+    );
     const prices = await db
-      .select({ code: tables.trainingOptions.code, price: tables.trainingOptions.price })
+      .select({
+        code: tables.trainingOptions.code,
+        price: tables.trainingOptions.price,
+      })
       .from(tables.trainingOptions)
-      .where(inArray(tables.trainingOptions.code, ["PT_1_2_DEEP", "PT_1_2_5M"]));
-    const price = (code: string) => prices.find((p) => p.code === code)?.price ?? null;
+      .where(
+        inArray(tables.trainingOptions.code, ["PT_1_2_DEEP", "PT_1_2_5M"]),
+      );
+    const price = (code: string) =>
+      prices.find((p) => p.code === code)?.price ?? null;
     // 풀장 교육 일정(장소가 있는 시간 일정)은 캘린더 길이와 상관없이 3시간으로 고정
-    const poolTypes: ScheduleType[] = ["SELF_PRACTICE", "PAID_TRAINING", "REGULAR_TRAINING", "REGULAR_CLASS"];
+    const poolTypes: ScheduleType[] = [
+      "SELF_PRACTICE",
+      "PAID_TRAINING",
+      "REGULAR_TRAINING",
+      "REGULAR_CLASS",
+    ];
     const endOf = (o: Occurrence, c: Classified) =>
       !o.allDay && c.place && poolTypes.includes(c.type)
         ? new Date(o.startsAt.getTime() + SESSION_HOURS * 3_600_000)
@@ -263,16 +375,15 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
       locationId: c.place ? (locIds.get(c.place) ?? null) : null,
       startsAt: o.startsAt,
       endsAt: endOf(o, c),
-      minLevel: c.type === "REGULAR_TRAINING" || c.type === "SELF_PRACTICE" ? 2 : null,
+      minLevel:
+        c.type === "REGULAR_TRAINING" || c.type === "SELF_PRACTICE" ? 2 : null,
       capacity: c.capacity ?? null,
       fee:
         c.feeKind === "DEEP_TRAINING"
           ? price("PT_1_2_DEEP")
-          : c.feeKind === "DEEP_WITH_CLASS"
-            ? DEEP_WITH_CLASS_FEE
-            : c.feeKind === "POOL_TRAINING"
-              ? price("PT_1_2_5M")
-              : null,
+          : c.feeKind === "POOL_TRAINING"
+            ? price("PT_1_2_5M")
+            : null,
       note: c.note ?? "",
       createdById: admin.id,
       contactName: admin.name,
@@ -316,22 +427,46 @@ export async function syncCalendar({ fresh = true }: { fresh?: boolean } = {}): 
         ),
       );
     if (stale.length) {
-      await db.delete(schedules).where(inArray(schedules.id, stale.map((s) => s.id)));
+      await db.delete(schedules).where(
+        inArray(
+          schedules.id,
+          stale.map((s) => s.id),
+        ),
+      );
     }
 
-    result = { at, ok: true, imported: values.length, removed: stale.length, unknown };
+    result = {
+      at,
+      ok: true,
+      imported: values.length,
+      removed: stale.length,
+      unknown,
+    };
   } catch (e) {
-    result = { at, ok: false, imported: 0, removed: 0, unknown: [], error: (e as Error).message };
+    result = {
+      at,
+      ok: false,
+      imported: 0,
+      removed: 0,
+      unknown: [],
+      error: (e as Error).message,
+    };
   }
   await db
     .insert(appSettings)
     .values({ key: SYNC_KEY, value: JSON.stringify(result) })
-    .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(result) } });
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value: JSON.stringify(result) },
+    });
   return result;
 }
 
 export async function lastCalendarSync(): Promise<GcalSyncResult | null> {
-  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, SYNC_KEY));
+  const [row] = await db
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, SYNC_KEY));
   return row ? (JSON.parse(row.value) as GcalSyncResult) : null;
 }
 
@@ -339,6 +474,10 @@ export async function lastCalendarSync(): Promise<GcalSyncResult | null> {
 export async function syncCalendarIfStale() {
   if (!gcalEnabled()) return;
   const last = await lastCalendarSync();
-  if (last && Date.now() - new Date(last.at).getTime() < AUTO_SYNC_MINUTES * 60_000) return;
+  if (
+    last &&
+    Date.now() - new Date(last.at).getTime() < AUTO_SYNC_MINUTES * 60_000
+  )
+    return;
   await syncCalendar({ fresh: false });
 }
