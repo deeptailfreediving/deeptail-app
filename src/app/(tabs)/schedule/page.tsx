@@ -3,23 +3,31 @@ import { syncCalendarIfStale } from "@/lib/gcal";
 import ScheduleBoard, { type DayData } from "./ScheduleBoard";
 import { listBookedBetween, listSchedulesBetween, scheduleTypeLabel } from "@/lib/schedule";
 import { won } from "@/lib/pricing";
-import { addDays, hm, kst, todayYmd, weekday } from "@/lib/time";
+import { addDays, hm, kst, todayYmd } from "@/lib/time";
 
 // 누구나 보는 화면이라 30초 동안 캐시 (관리자·신청 변경 시 바로 갱신)
 export const revalidate = 30;
 export const metadata = { title: "일정 | 딥테일 프리다이빙" };
 
-const DAYS_SHOWN = 21;
+// 달력: 이번 달 포함 3개월 (오늘부터 신청 가능)
+const MONTHS_SHOWN = 3;
+
+function lastDayShown(today: string) {
+  const [y, m] = today.split("-").map(Number);
+  const end = new Date(Date.UTC(y, m - 1 + MONTHS_SHOWN, 0)); // 2달 뒤 달의 마지막 날
+  return end.toISOString().slice(0, 10);
+}
 
 export default async function SchedulePage() {
   const today = todayYmd();
-  const days = Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(today, i));
-  const last = days[days.length - 1];
+  const last = lastDayShown(today);
+  const days: string[] = [];
+  for (let d = today; d <= last; d = addDays(d, 1)) days.push(d);
 
   // 구글 캘린더를 10분 넘게 안 읽었으면 먼저 읽어옴
   await syncCalendarIfStale().catch(() => undefined);
 
-  // 3주치를 한 번에 받아 두고, 날짜를 누르면 화면에서 바로 바꿈 (서버 왕복 없음)
+  // 3개월치를 한 번에 받아 두고, 날짜를 누르면 화면에서 바로 바꿈 (서버 왕복 없음)
   const [items, booked] = await Promise.all([
     listSchedulesBetween(kst(today), kst(last, "23:59")),
     listBookedBetween(kst(today), kst(last, "23:59")),
@@ -79,7 +87,7 @@ export default async function SchedulePage() {
       <PageHeader title="일정안내 및 예약" />
       <ScheduleBoard
         today={today}
-        days={days.map((d) => ({ d, w: weekday(d) }))}
+        last={last}
         data={data}
       />
     </>

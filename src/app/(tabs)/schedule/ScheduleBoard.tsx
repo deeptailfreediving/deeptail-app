@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type ScheduleType = "SELF_PRACTICE" | "REGULAR_TRAINING" | "REGULAR_CLASS" | "PAID_TRAINING" | "OVERSEAS_TOUR";
 
@@ -34,30 +34,47 @@ const typeStyle: Record<ScheduleType, string> = {
 
 const md = (d: string) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8))}일`;
 
+const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+const pad = (n: number) => String(n).padStart(2, "0");
+const weekdayOf = (d: string) => WEEK[new Date(`${d}T12:00:00Z`).getUTCDay()];
+
+// 달력 칸에 찍는 점 색 (종류별)
+const dotColor: Record<string, string> = {
+  REGULAR_TRAINING: "bg-brand",
+  SELF_PRACTICE: "bg-teal-400",
+  PAID_TRAINING: "bg-amber-400",
+  REGULAR_CLASS: "bg-amber-400",
+  OVERSEAS_TOUR: "bg-brand-deep",
+  booked: "bg-ink-mute/40",
+};
+
+const legend = [
+  { c: "bg-brand", t: "정기트레이닝" },
+  { c: "bg-teal-400", t: "자율연습반" },
+  { c: "bg-amber-400", t: "유료트레이닝" },
+  { c: "bg-ink-mute/40", t: "예약됨" },
+];
+
 export default function ScheduleBoard({
   today,
-  days,
+  last,
   data,
 }: {
   today: string;
-  days: { d: string; w: string }[];
+  last: string;
   data: Record<string, DayData>;
 }) {
   const [date, setDate] = useState(today);
-  const stripRef = useRef<HTMLOListElement>(null);
+  const [month, setMonth] = useState(today.slice(0, 7)); // YYYY-MM
 
   // 주소의 ?date= 로 들어온 경우 그 날짜를 선택
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("date");
-    if (q && data[q]) setDate(q);
+    if (q && data[q]) {
+      setDate(q);
+      setMonth(q.slice(0, 7));
+    }
   }, [data]);
-
-  // 선택한 날짜를 가로 목록 가운데로
-  useEffect(() => {
-    stripRef.current
-      ?.querySelector('[aria-current="date"]')
-      ?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-  }, [date]);
 
   function pick(d: string) {
     setDate(d);
@@ -65,43 +82,112 @@ export default function ScheduleBoard({
     window.history.replaceState(window.history.state, "", `/schedule?date=${d}`);
   }
 
+  const [y, m] = month.split("-").map(Number);
+  const firstWeekday = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const cells: (string | null)[] = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => `${month}-${pad(i + 1)}`),
+  ];
+  const shift = (n: number) => {
+    const d = new Date(Date.UTC(y, m - 1 + n, 1));
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+  };
+  const canPrev = month > today.slice(0, 7);
+  const canNext = month < last.slice(0, 7);
+
   const timeline = data[date] ?? [];
-  const w = days.find((x) => x.d === date)?.w ?? "";
+  const w = weekdayOf(date);
 
   return (
     <>
-      {/* 날짜 선택 */}
-      <nav aria-label="날짜 선택" className="sticky top-14 z-[5] border-b border-line bg-white">
-        <ol ref={stripRef} className="flex gap-1.5 overflow-x-auto px-3 py-3 [scrollbar-width:none]">
-          {days.map(({ d, w }) => {
+      {/* 달력 */}
+      <section aria-label="일정 달력" className="border-b border-line bg-white px-3 pb-3 pt-2">
+        <div className="flex items-center justify-between px-1">
+          <button
+            type="button"
+            disabled={!canPrev}
+            onClick={() => setMonth(shift(-1))}
+            aria-label="이전 달"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-xl disabled:opacity-20"
+          >
+            ‹
+          </button>
+          <h2 className="text-base font-bold">
+            {y}년 {m}월
+          </h2>
+          <button
+            type="button"
+            disabled={!canNext}
+            onClick={() => setMonth(shift(1))}
+            aria-label="다음 달"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-xl disabled:opacity-20"
+          >
+            ›
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 text-center text-[11px] font-medium text-ink-mute">
+          {WEEK.map((d, i) => (
+            <span key={d} className={`py-1 ${i === 0 ? "text-red-600" : i === 6 ? "text-brand" : ""}`}>
+              {d}
+            </span>
+          ))}
+        </div>
+
+        <div key={month} className="grid animate-fade-in grid-cols-7 gap-y-1">
+          {cells.map((d, i) => {
+            if (!d) return <span key={`e${i}`} />;
+            const inRange = d >= today && d <= last;
+            const items = data[d] ?? [];
+            const closed = items.some((x) => x.kind === "closure");
+            const kinds = [
+              ...new Set(items.filter((x) => x.kind !== "closure").map((x) => (x.kind === "schedule" ? x.type : "booked"))),
+            ].slice(0, 4);
             const active = d === date;
-            const has = (data[d] ?? []).some((x) => x.kind !== "closure");
+            const wd = i % 7;
             return (
-              <li key={d}>
-                <button
-                  type="button"
-                  onClick={() => pick(d)}
-                  aria-current={active ? "date" : undefined}
-                  className={`relative flex h-16 w-12 flex-col items-center justify-center gap-0.5 rounded-xl text-xs ${
-                    active ? "bg-brand text-white" : "bg-canvas text-ink"
+              <button
+                key={d}
+                type="button"
+                disabled={!inRange}
+                onClick={() => pick(d)}
+                aria-current={active ? "date" : undefined}
+                aria-label={`${Number(d.slice(5, 7))}월 ${Number(d.slice(8))}일${items.length ? `, 일정 ${items.filter((x) => x.kind !== "closure").length}개` : ""}${closed ? ", 휴관 있음" : ""}`}
+                className={`mx-auto flex h-12 w-full max-w-[52px] flex-col items-center justify-start gap-1 rounded-xl pt-1.5 text-sm disabled:opacity-30 ${
+                  active ? "bg-brand text-white" : d === today ? "bg-brand-tint" : ""
+                }`}
+              >
+                <span
+                  className={`leading-none ${active ? "font-bold" : wd === 0 ? "text-red-600" : wd === 6 ? "text-brand" : ""} ${
+                    d === today && !active ? "font-bold" : ""
                   }`}
                 >
-                  <span className={active ? "" : w === "일" ? "text-red-600" : w === "토" ? "text-brand" : "text-ink-mute"}>
-                    {d === today ? "오늘" : w}
-                  </span>
-                  <span className="text-base font-bold">{Number(d.slice(8))}</span>
-                  {has && (
-                    <span
-                      aria-hidden
-                      className={`absolute bottom-1.5 h-1 w-1 rounded-full ${active ? "bg-white" : "bg-brand"}`}
-                    />
-                  )}
-                </button>
-              </li>
+                  {Number(d.slice(8))}
+                </span>
+                <span className="flex h-1.5 items-center gap-0.5">
+                  {kinds.map((k) => (
+                    <span key={k} className={`h-1.5 w-1.5 rounded-full ${active ? "bg-white" : dotColor[k]}`} />
+                  ))}
+                  {closed && <span className={`text-[9px] font-bold leading-none ${active ? "text-white" : "text-red-500"}`}>휴</span>}
+                </span>
+              </button>
             );
           })}
-        </ol>
-      </nav>
+        </div>
+
+        <ul className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-ink-sub">
+          {legend.map((l) => (
+            <li key={l.t} className="flex items-center gap-1">
+              <span className={`h-1.5 w-1.5 rounded-full ${l.c}`} />
+              {l.t}
+            </li>
+          ))}
+          <li className="flex items-center gap-1">
+            <span className="text-[10px] font-bold text-red-500">휴</span>휴관
+          </li>
+        </ul>
+      </section>
 
       <div className="flex flex-col gap-3 p-4 pb-32">
         <h2 className="mx-1 text-base font-bold">
