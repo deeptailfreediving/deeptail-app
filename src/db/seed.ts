@@ -1,6 +1,6 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db, tables } from "./index";
 import { courseData } from "./course-data";
 
@@ -122,43 +122,37 @@ async function main() {
 
   if (process.env.SEED_DEMO === "1") await seedDemo(admin.id);
 
+  await removeDemoSchedules();
   console.log("시드 완료 — 관리자 계정:", adminEmail);
   process.exit(0);
 }
 
 /**
  * 테스트용 예시 데이터 (SEED_DEMO=1 일 때만)
- * - 앞으로 2주간 자율연습반 · 정기트레이닝 예시 일정 (제목에 [예시] 표시)
  * - 자율연습 참여 가능한 테스트 교육생: demo@deeptail.local / demo1234 (AIDA 2, 2회차 완료)
  * 실제 운영 전에 SEED_DEMO를 지우고 관리자 화면에서 예시 일정을 삭제하세요.
  */
+/** [예시] 일정과 거기에 걸린 신청을 지움 (배포할 때마다 실행, 없으면 아무 일 없음) */
+async function removeDemoSchedules() {
+  const demo = await db
+    .select({ id: tables.schedules.id })
+    .from(tables.schedules)
+    .where(sql`${tables.schedules.title} like '[예시]%'`);
+  if (!demo.length) return;
+  const ids = demo.map((d) => d.id);
+  await db.delete(tables.registrations).where(inArray(tables.registrations.scheduleId, ids));
+  await db.delete(tables.schedules).where(inArray(tables.schedules.id, ids));
+  console.log(`[예시] 일정 ${ids.length}건 삭제`);
+}
+
 async function seedDemo(adminId: string) {
   const [admin] = await db.select().from(tables.users).where(eq(tables.users.id, adminId));
   const locs = await db.select().from(tables.locations);
   const loc = (name: string) => locs.find((l) => l.name === name)!.id;
 
-  const [{ demoCount }] = await db
-    .select({ demoCount: sql<number>`count(*)::int` })
-    .from(tables.schedules)
-    .where(sql`${tables.schedules.title} like '[예시]%'`);
-  if (demoCount === 0) {
-    const today = new Date();
-    const rows = [];
-    for (let i = 1; i <= 14; i++) {
-      const d = new Date(today.getTime() + i * 86_400_000);
-      const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(d);
-      const dow = new Date(`${date}T12:00:00+09:00`).getUTCDay();
-      const at = (t: string) => new Date(`${date}T${t}:00+09:00`);
-      const common = { createdById: admin.id, contactName: admin.name, contactPhone: admin.phone };
-      if (dow === 6) {
-        rows.push({ ...common, type: "SELF_PRACTICE" as const, title: "[예시] 자율연습반", locationId: loc("파라다이브"), startsAt: at("10:00"), endsAt: at("13:00"), capacity: 8 });
-      }
-      if (dow === 3) {
-        rows.push({ ...common, type: "REGULAR_TRAINING" as const, title: "[예시] 정기트레이닝", locationId: loc("오산 TSN"), startsAt: at("19:00"), endsAt: at("22:00"), capacity: 6, note: "강사가 연습 방향을 제시하고 개인 피드백을 드려요." });
-      }
-    }
-    if (rows.length) await db.insert(tables.schedules).values(rows);
-  }
+  // [예시] 일정은 더 이상 만들지 않음 (실제 일정은 구글 캘린더에서 가져옴)
+  void admin;
+  void loc;
 
   await db
     .insert(tables.users)
